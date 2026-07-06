@@ -1,14 +1,90 @@
-import { StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { supabase } from '../lib/supabase';
+import Ionicons from '@expo/vector-icons/Ionicons';
+interface Instrument {
+  id: number;
+  name: string;
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+  description?: string;
+  category: {
+    id?: number;
+    name: string;
+  } | null;
+}
 
-export default function TabOneScreen() {
+export default function App() {
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function getInstruments() {
+      try {
+        // SOLUTION : On utilise "category:category_id(...)"
+        // Cela dit à Supabase : "Utilise la colonne category_id pour faire la jointure, 
+        // mais renvoie le résultat dans un objet nommé 'category' pour mon code React"
+        const { data, error } = await supabase
+          .from('instruments')
+          .select<string, Instrument>('id, name, description, category:category_id(id, name)')
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        if (data) setInstruments(data);
+      } catch (error) {
+        console.error("Erreur lors de la récupération :", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    getInstruments();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#008080" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <Text style={styles.headerTitle}>Catalogue</Text>
+
+      <FlatList
+        data={instruments}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={true}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            {/* On affiche le .name textuel de la catégorie */}
+
+            <View style={styles.categoryContainer}>
+              {item.category?.name && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{item.category.name}</Text>
+                </View>
+              )}
+              <Ionicons name="information-circle" size={20} color="#008080" aria-label='infos'/>
+            </View>
+
+            <Text style={styles.itemName}>{item.name}</Text>
+
+            {item.description && (
+              <Text style={styles.itemDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+            )}
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Aucun instrument disponible.</Text>
+          </View>
+        }
+      />
     </View>
   );
 }
@@ -16,16 +92,79 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 20,
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+  listContainer: {
+    paddingBottom: 30,
+  },
+  center: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    borderColor: '#20db0736',
+    borderWidth: 1,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  badge: {
+    backgroundColor: '#E6F2F2',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+
+  },
+  badgeText: {
+    color: '#008080',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  itemName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 6,
+  },
+  itemDescription: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999999',
+    fontSize: 15,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    
   },
 });
