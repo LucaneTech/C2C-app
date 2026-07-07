@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Image } from 'react-native';
 import { supabase } from '../lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
 interface Instrument {
   id: number;
   name: string;
-
+  price?: number;
+  image: string | null;
   description?: string;
   category: {
     id?: number;
@@ -25,7 +28,7 @@ export default function App() {
         // mais renvoie le résultat dans un objet nommé 'category' pour mon code React"
         const { data, error } = await supabase
           .from('instruments')
-          .select<string, Instrument>('id, name, description, category:category_id(id, name)')
+          .select<string, Instrument>('id, name, description, category:category_id(id, name), image, price')
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -58,9 +61,16 @@ export default function App() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={true}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            {/* On affiche le .name textuel de la catégorie */}
-
+          <Pressable
+            style={styles.card}
+            onPress={() =>
+              router.push({
+                pathname: '/instruments/[id]',
+                params: { id: item.id.toString() },
+              })
+            }
+            accessibilityRole="button"
+          >
             <View style={styles.categoryContainer}>
               {item.category?.name && (
                 <View style={styles.badge}>
@@ -69,7 +79,29 @@ export default function App() {
               )}
               <Ionicons name="information-circle" size={20} color="#008080" aria-label='infos'/>
             </View>
-
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              {item.image ? (
+                <Image
+                  source={{ uri: item.image }}
+                  style={{ width: 100, height: 50, borderRadius: 5}}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 5,
+                    backgroundColor: '#E0E0E0',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 10,
+                  }}
+                >
+                  <Ionicons name="image" size={24} color="#A0A0A0" />
+                </View>
+              )}
+              
+            </View>
             <Text style={styles.itemName}>{item.name}</Text>
 
             {item.description && (
@@ -77,7 +109,7 @@ export default function App() {
                 {item.description}
               </Text>
             )}
-          </View>
+          </Pressable>
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
