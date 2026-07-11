@@ -23,9 +23,7 @@ export default function App() {
   useEffect(() => {
     async function getInstruments() {
       try {
-        // SOLUTION : On utilise "category:category_id(...)"
-        // Cela dit à Supabase : "Utilise la colonne category_id pour faire la jointure, 
-        // mais renvoie le résultat dans un objet nommé 'category' pour mon code React"
+      
         const { data, error } = await supabase
           .from('instruments')
           .select<string, Instrument>('id, name, description, category:category_id(id, name), image, price')
