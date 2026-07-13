@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'react-native';
-import { supabase } from '../lib/supabase';
+import  supabase  from '../lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Button } from 'expo-router/build/react-navigation';
 interface Instrument {
   id: number;
   name: string;
@@ -15,6 +16,12 @@ interface Instrument {
     name: string;
   } | null;
 }
+
+ async function signOut() {
+    const { error } = await supabase.auth.signOut()
+    router.replace('/') // Redirige vers l'écran de connexion après la déconnexion
+    if (error) Alert.alert(error.message)
+  }
 
 export default function App() {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
@@ -52,6 +59,9 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text style={styles.headerTitle}>Catalogue</Text>
+      <Button onPress={signOut}>
+        Deconnexion
+      </Button>
 
       <FlatList
         data={instruments}
