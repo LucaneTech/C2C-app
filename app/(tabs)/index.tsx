@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
-import { Image } from 'react-native';
-import  supabase  from '../lib/supabase';
+import HeaderUserBadge from '@/components/HeaderUserBadge';
+import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Button } from 'expo-router/build/react-navigation';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+
 interface Instrument {
   id: number;
   name: string;
@@ -17,11 +17,11 @@ interface Instrument {
   } | null;
 }
 
- async function signOut() {
-    const { error } = await supabase.auth.signOut()
-    router.replace('/') // Redirige vers l'écran de connexion après la déconnexion
-    if (error) Alert.alert(error.message)
-  }
+async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  router.replace('/');
+  if (error) Alert.alert(error.message);
+}
 
 export default function App() {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
@@ -30,7 +30,6 @@ export default function App() {
   useEffect(() => {
     async function getInstruments() {
       try {
-      
         const { data, error } = await supabase
           .from('instruments')
           .select<string, Instrument>('id, name, description, category:category_id(id, name), image, price')
@@ -58,16 +57,16 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Catalogue</Text>
-      <Button onPress={signOut}>
-        Deconnexion
-      </Button>
+      <HeaderUserBadge />
+       <View style ={{ marginBottom: 15}}/>     
 
       <FlatList
         data={instruments}
         keyExtractor={(item) => item.id.toString()}
+        numColumns={2} // Active l'affichage sur deux colonnes
+        columnWrapperStyle={styles.row} // Ajoute de l'espace horizontal entre les colonnes
         contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <Pressable
             style={styles.card}
@@ -79,44 +78,41 @@ export default function App() {
             }
             accessibilityRole="button"
           >
-            <View style={styles.categoryContainer}>
+            {/* Image au format 4:3 (plus adapté pour une grille à 2 colonnes) */}
+            {item.image ? (
+              <Image
+                source={{ uri: item.image }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Ionicons name="image" size={28} color="#94A3B8" />
+              </View>
+            )}
+
+            {/* Contenu */}
+            <View style={styles.cardContent}>
+              
+              {/* Catégorie */}
               {item.category?.name && (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.category.name}</Text>
+                  <Text style={styles.badgeText} numberOfLines={1}>
+                    {item.category.name}
+                  </Text>
                 </View>
               )}
-              <Ionicons name="information-circle" size={20} color="#008080" aria-label='infos'/>
-            </View>
-             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              {item.image ? (
-                <Image
-                  source={{ uri: item.image }}
-                  style={{ width: 100, height: 50, borderRadius: 5}}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 5,
-                    backgroundColor: '#E0E0E0',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginRight: 10,
-                  }}
-                >
-                  <Ionicons name="image" size={24} color="#A0A0A0" />
-                </View>
-              )}
-              
-            </View>
-            <Text style={styles.itemName}>{item.name}</Text>
 
-            {item.description && (
-              <Text style={styles.itemDescription} numberOfLines={2}>
-                {item.description}
+              {/* Titre */}
+              <Text style={styles.itemName} numberOfLines={1}>
+                {item.name}
               </Text>
-            )}
+
+              {/* Prix */}
+              {item.price !== undefined && (
+                <Text style={styles.itemPrice}>{item.price} €</Text>
+              )}
+            </View>
           </Pressable>
         )}
         ListEmptyComponent={
@@ -134,18 +130,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
     paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12, // Léger ajustement pour maximiser l'espace des grilles
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 20,
-    marginTop: 20,
+    color: '#0A2540',
+    marginBottom: 16,
+    marginTop: 16,
     alignSelf: 'center',
   },
   listContainer: {
-    paddingBottom: 30,
+    paddingBottom: 24,
+  },
+  row: {
+    justifyContent: 'space-between', // Aligne parfaitement les deux colonnes aux extrémités
   },
   center: {
     flex: 1,
@@ -155,41 +154,56 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
-    borderColor: '#20db0736',
-    borderWidth: 1,
+    borderRadius: 5,
+    marginBottom: 12,
+    flex: 0.485, // Distribue l'espace de manière strictement égale sur tous les écrans
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    aspectRatio: 4 / 3, // Format compact idéal pour deux colonnes
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  placeholderImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  cardContent: {
+    padding: 10,
   },
   badge: {
     backgroundColor: '#E6F2F2',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-
+    marginBottom: 6,
+    maxWidth: '100%',
   },
   badgeText: {
     color: '#008080',
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   itemName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 6,
-  },
-  itemDescription: {
     fontSize: 14,
-    color: '#666666',
-    lineHeight: 20,
+    fontWeight: '700',
+    color: '#0A2540',
+    marginBottom: 4,
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#008080',
+    marginTop: 2,
   },
   emptyContainer: {
     padding: 40,
@@ -197,14 +211,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#999999',
+    color: '#64748B',
     fontSize: 15,
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    
   },
 });
