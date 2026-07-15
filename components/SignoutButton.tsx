@@ -36,7 +36,7 @@ export default function SignOutButton({
   style,
   textStyle,
   variant = 'outline',
-  label = 'Se déconnecter',
+  label = 'Déconnexion',
 }: SignOutButtonProps) {
   const { loading, handleSignOut } = useAuth();
 
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 1.5,
     borderColor: '#EF4444',
-    borderRadius: 10,
+    borderRadius: 4,
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   buttonSolid: {
     width: '100%',
     backgroundColor: '#EF4444',
-    borderRadius: 10,
+    borderRadius: 4,
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: 'center',

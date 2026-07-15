@@ -1,5 +1,6 @@
 import { useAuth } from '@/hook/UseAuth';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -32,7 +33,7 @@ export default function SignupScreen() {
 
   const [role, setRole] = useState<UserRole>('customer');
   const [phone, setPhone] = useState<string>('');
-  
+
   // State for confirm password field to avoid mirror typing
   const [confirmPassword, setConfirmPassword] = useState<string>('');
 
@@ -230,7 +231,11 @@ export default function SignupScreen() {
                 {error || passError}
               </Text>
             )}
-
+            <Link href="/auth/SignupScreen" style={styles.linkContainer}>
+              <Text style={styles.linkText}>
+                Vous avez déjà un compte ? <Text style={styles.linkAccent}>Connectez-vous</Text>
+              </Text>
+            </Link>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -421,5 +426,18 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 16,
     textAlign: 'center',
+  },
+   linkContainer: {
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+  linkText: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    fontWeight: '300',
+  },
+  linkAccent: {
+    color: '#D4AF37',
+    fontWeight: '700',
   },
 });

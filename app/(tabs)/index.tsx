@@ -1,9 +1,23 @@
 import HeaderUserBadge from '@/components/HeaderUserBadge';
+import SearchFilterBanner from '@/components/SearchFilterBanner';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, useMemo } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+interface Category {
+  id: number;
+  name: string;
+}
 
 interface Instrument {
   id: number;
@@ -11,32 +25,45 @@ interface Instrument {
   price?: number;
   image: string | null;
   description?: string;
-  category: {
-    id?: number;
-    name: string;
-  } | null;
-}
-
-async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  router.replace('/');
-  if (error) Alert.alert(error.message);
+  category: Category | null;
 }
 
 export default function App() {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // States dedicated for searching and filtering capabilities
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string | number | null>(null);
+
   useEffect(() => {
     async function getInstruments() {
       try {
         const { data, error } = await supabase
           .from('instruments')
-          .select<string, Instrument>('id, name, description, category:category_id(id, name), image, price')
+          .select<string, any>(`
+            id, 
+            name, 
+            description, 
+            category:category_id(id, name), 
+            image, 
+            price
+          `)
           .order('name', { ascending: true });
 
         if (error) throw error;
-        if (data) setInstruments(data);
+        if (data) {
+          // Adapt the nested return payload structures to match your frontend model interface
+          const formattedData: Instrument[] = data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            image: item.image,
+            category: item.category ? { id: item.category.id, name: item.category.name } : null,
+          }));
+          setInstruments(formattedData);
+        }
       } catch (error) {
         console.error("Erreur lors de la récupération :", error);
       } finally {
@@ -47,26 +74,73 @@ export default function App() {
     getInstruments();
   }, []);
 
+  /**
+   * Automatically derives and extracts unique categories from the retrieved products list
+   */
+  const uniqueCategories = useMemo(() => {
+    const categoriesMap = new Map<number, string>();
+    instruments.forEach((item) => {
+      if (item.category?.id && item.category?.name) {
+        categoriesMap.set(item.category.id, item.category.name);
+      }
+    });
+
+    return Array.from(categoriesMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
+  }, [instruments]);
+
+  /**
+   * Memoized computation that filters the instruments by search query and category
+   */
+  const filteredInstruments = useMemo(() => {
+    return instruments.filter((item) => {
+      const matchesCategory =
+        selectedCategory === null || item.category?.id === selectedCategory;
+
+      const matchesSearch =
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category?.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [instruments, searchQuery, selectedCategory]);
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#008080" />
+        <ActivityIndicator size="large" color="#0a2540" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* Sticky User Header */}
       <HeaderUserBadge />
-       <View style ={{ marginBottom: 15}}/>     
 
       <FlatList
-        data={instruments}
+        data={filteredInstruments}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={2} // Active l'affichage sur deux colonnes
-        columnWrapperStyle={styles.row} // Ajoute de l'espace horizontal entre les colonnes
+        numColumns={2}
+        columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        
+        // Inject Search, Filters, and Banner dynamically as Header of the list
+        ListHeaderComponent={
+          <SearchFilterBanner
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            categories={uniqueCategories}
+            selectedCategory={selectedCategory}
+            onCategorySelect={setSelectedCategory}
+          />
+        }
+        
         renderItem={({ item }) => (
           <Pressable
             style={styles.card}
@@ -78,7 +152,6 @@ export default function App() {
             }
             accessibilityRole="button"
           >
-            {/* Image au format 4:3 (plus adapté pour une grille à 2 colonnes) */}
             {item.image ? (
               <Image
                 source={{ uri: item.image }}
@@ -91,10 +164,7 @@ export default function App() {
               </View>
             )}
 
-            {/* Contenu */}
             <View style={styles.cardContent}>
-              
-              {/* Catégorie */}
               {item.category?.name && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText} numberOfLines={1}>
@@ -103,12 +173,10 @@ export default function App() {
                 </View>
               )}
 
-              {/* Titre */}
               <Text style={styles.itemName} numberOfLines={1}>
                 {item.name}
               </Text>
 
-              {/* Prix */}
               {item.price !== undefined && (
                 <Text style={styles.itemPrice}>{item.price} €</Text>
               )}
@@ -117,7 +185,7 @@ export default function App() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun instrument disponible.</Text>
+            <Text style={styles.emptyText}>Aucun instrument ne correspond à votre recherche.</Text>
           </View>
         }
       />
@@ -128,42 +196,35 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    paddingTop: 60,
-    paddingHorizontal: 12, // Léger ajustement pour maximiser l'espace des grilles
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#0A2540',
-    marginBottom: 16,
-    marginTop: 16,
-    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingTop: 10,
   },
   listContainer: {
-    paddingBottom: 24,
+    paddingHorizontal: 16,
+    paddingBottom: 100, // Extra padding to make sure content clears the floating tab bar
+    paddingTop: 16,
   },
   row: {
-    justifyContent: 'space-between', // Aligne parfaitement les deux colonnes aux extrémités
+    justifyContent: 'space-between',
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFFFFF',
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    marginBottom: 12,
-    flex: 0.485, // Distribue l'espace de manière strictement égale sur tous les écrans
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    marginBottom: 16,
+    flex: 0.485,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   cardImage: {
     width: '100%',
-    aspectRatio: 4 / 3, // Format compact idéal pour deux colonnes
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    aspectRatio: 4 / 3,
   },
   placeholderImage: {
     width: '100%',
@@ -171,23 +232,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
   },
   cardContent: {
-    padding: 10,
+    padding: 12,
   },
   badge: {
-    backgroundColor: '#E6F2F2',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     alignSelf: 'flex-start',
     marginBottom: 6,
     maxWidth: '100%',
   },
   badgeText: {
-    color: '#008080',
+    color: '#0A2540',
     fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -202,7 +261,7 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#008080',
+    color: '#0a2540',
     marginTop: 2,
   },
   emptyContainer: {
@@ -212,6 +271,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     color: '#64748B',
-    fontSize: 15,
+    fontSize: 14,
   },
 });

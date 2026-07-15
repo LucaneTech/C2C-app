@@ -28,7 +28,7 @@ export default function LoginScreen() {
     loading,
     handleSignIn,
     error,
-    handleGoogleSignIn
+    // handleGoogleSignIn
   } = useAuth();
 
   // State to toggle password visibility
@@ -146,14 +146,14 @@ export default function LoginScreen() {
             </Link>
 
             {/* Social Login Divider */}
-            <View style={styles.dividerContainer}>
+            {/* <View style={styles.dividerContainer}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>OU CONTINUER AVEC</Text>
               <View style={styles.dividerLine} />
-            </View>
+            </View> */}
 
             {/* Social Buttons aligned horizontally on one line */}
-            <View style={styles.socialButtonsContainer}>
+            {/* <View style={styles.socialButtonsContainer}>
               <TouchableOpacity
                 style={styles.socialButton}
                 onPress={handleGoogleSignIn}
@@ -171,7 +171,7 @@ export default function LoginScreen() {
                 <Ionicons name="logo-facebook" size={18} color="#ffffff" />
                 <Text style={styles.socialButtonText}>Facebook</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
 
           </View>
         </ScrollView>
@@ -212,13 +212,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logoIconBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: 70,
+    height: 70,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0a2540',
+    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#0a2540',
+    color: '#D4AF37',
     letterSpacing: 1.5,
   },
   /* --- Dark Form Card Styling --- */
