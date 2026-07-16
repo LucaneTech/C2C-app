@@ -90,7 +90,11 @@ export default function LoginScreen() {
             <View style={styles.inputGroup}>
               <View style={styles.passwordLabelContainer}>
                 <Text style={styles.label}>Mot de passe</Text>
-                <Text style={styles.forgotPassword}>Oublié ?</Text>
+                <Link href="/auth/ForgotPasswordScreen" asChild>
+                  <TouchableOpacity activeOpacity={0.7}>
+                    <Text style={styles.forgotPassword}>Oublié ?</Text>
+                  </TouchableOpacity>
+                </Link>
               </View>
               <View style={styles.passwordInputContainer}>
                 <TextInput

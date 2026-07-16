@@ -212,6 +212,72 @@ export function useAuth() {
     }
   }
 
+
+
+
+ ///**************Reset and updatepassword functions */
+
+/**
+ * Envoie un email de réinitialisation contenant un lien profond (Deep Link)
+ */
+async function handleRequestPasswordReset(emailInput: string): Promise<boolean> {
+  setLoading(true);
+  setError(null);
+  try {
+    // Génère l'URL de redirection propre à l'application
+    const redirectUrl = Linking.createURL('/auth/ResetPasswordScreen');
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      emailInput.trim(),
+      { redirectTo: redirectUrl }
+    );
+
+    if (resetError) {
+      setError(resetError.message);
+      return false;
+    }
+
+    Alert.alert(
+      'Email envoyé',
+      'Un lien de réinitialisation de mot de passe a été envoyé à votre adresse email.'
+    );
+    return true;
+  } catch (err: any) {
+    const errMsg = err.message || 'Une erreur est survenue.';
+    setError(errMsg);
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Met à jour le mot de passe de l'utilisateur actuellement authentifié (session temporaire de récupération)
+ */
+async function handleUpdatePassword(newPassword: string): Promise<boolean> {
+  setLoading(true);
+  setError(null);
+  try {
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      setError(updateError.message);
+      return false;
+    }
+
+    Alert.alert('Succès', 'Votre mot de passe a été modifié avec succès.');
+    router.replace('/auth/LoginScreen');
+    return true;
+  } catch (err: any) {
+    const errMsg = err.message || 'Impossible de mettre à jour le mot de passe.';
+    setError(errMsg);
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}
   return {
     email,
     setEmail,
@@ -219,10 +285,17 @@ export function useAuth() {
     setPassword,
     loading,
     error,
+//email and password handlers
     handleSignIn,
     handleSignUp,
     handleSignOut,
-    handleGoogleSignIn,   // Added Google Auth capability
+
+//social login handlers
+    handleGoogleSignIn,  
     handleFacebookSignIn, 
+
+//Reset and update password handlers
+    handleRequestPasswordReset,  
+    handleUpdatePassword,
   };
 }

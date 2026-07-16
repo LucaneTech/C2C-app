@@ -11,42 +11,65 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  // Helper to parse the redirect URL and extract tokens to establish a session
-  const handleDeepLink = async (url: string) => {
+  // Parse les paramètres de l'URL (gère les '?' classiques ET les '#' de Supabase)
+  const extractTokensFromUrl = (url: string) => {
     try {
-      const parsed = Linking.parse(url);
-      const { access_token, refresh_token } = parsed.queryParams || {};
+      // Si l'URL contient un fragment (#), on le convertit temporairement en query string (?) pour le parser facilement
+      const normalizedUrl = url.replace('#', '?');
+      const parsed = Linking.parse(normalizedUrl);
+      
+      const access_token = parsed.queryParams?.access_token as string;
+      const refresh_token = parsed.queryParams?.refresh_token as string;
+      const type = parsed.queryParams?.type as string;
 
-      if (access_token && refresh_token) {
-        const { error } = await supabase.auth.setSession({
-          access_token: access_token as string,
-          refresh_token: refresh_token as string,
-        });
-        if (error) console.error('Error setting session from deep link:', error.message);
-      }
+      return { access_token, refresh_token, type };
     } catch (err) {
-      console.error('Failed to parse deep link URL:', err);
+      console.error('Erreur lors du parsing du lien profond:', err);
+      return { access_token: null, refresh_token: null, type: null };
+    }
+  };
+
+  const handleDeepLink = async (url: string) => {
+    const { access_token, refresh_token, type } = extractTokensFromUrl(url);
+
+    if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      
+      if (error) {
+        console.error('Erreur d\'initialisation de la session via lien:', error.message);
+      } else if (type === 'recovery') {
+        // Redirection manuelle immédiate si l'événement ne se déclenche pas assez vite
+        router.replace('/auth/ResetPasswordScreen');
+      }
     }
   };
 
   useEffect(() => {
-    // 1. Retrieve the active stored session on startup
+    // 1. Récupère la session active au démarrage
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsReady(true);
     });
 
-    // 2. Real-time auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // 2. Écouteur d'état d'authentification en temps réel
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      
+      // Intercepte l'événement de récupération de mot de passe
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/auth/ResetPasswordScreen');
+      }
     });
 
-    // 3. Handle deep link if the app was closed and opened via redirect URL
+    // 3. Gère le lien si l'application était fermée
     Linking.getInitialURL().then((url) => {
       if (url) handleDeepLink(url);
     });
 
-    // 4. Handle incoming deep links while the app is running in the background
+    // 4. Gère le lien si l'application tournait en arrière-plan
     const subscriptionLinking = Linking.addEventListener('url', (event) => {
       if (event.url) handleDeepLink(event.url);
     });
@@ -60,23 +83,24 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isReady) return;
 
-    // Check if the user is currently in the authentication screens
     const inAuthGroup = segments[0] === 'auth' || segments.length === 0 || segments[0] === 'index';
+    
+    // Évite d'interrompre l'utilisateur s'il est en train de réinitialiser son mot de passe
+    const isResettingPassword = segments[1] === 'ResetPasswordScreen';
 
     if (session) {
-      // If connected, redirect automatically to main application
-      if (inAuthGroup) {
+      // Redirige vers l'application principale uniquement si connecté et PAS en cours de réinitialisation
+      if (inAuthGroup && !isResettingPassword) {
         router.replace('/(tabs)');
       }
     } else {
-      // If disconnected, redirect back to home page
       if (!inAuthGroup) {
         router.replace('/');
       }
     }
   }, [session, isReady, segments]);
 
-  // Loading indicator while restoring session
+  // Indicateur de chargement
   if (!isReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
@@ -94,25 +118,10 @@ export default function RootLayout() {
           options={{ headerShown: false }} 
         />
 
-        {/* Authentication Group */}
+        {/* Authentication Screens */}
         <Stack.Screen 
-          name="auth/LoginScreen" 
-          options={{ 
-            headerShown: false,
-            gestureEnabled: false // Prevents swiping back to home screen
-          }} 
-        />
-        
-        <Stack.Screen 
-          name="auth/SignupScreen" 
-          options={{ 
-            title: "",
-            headerStyle: { backgroundColor: '#F8F9FA' },
-            headerTintColor: '#0A2540',
-            headerTitleStyle: { fontWeight: '600' },
-            headerShadowVisible: false,
-            headerBackTitle: "Retour"
-          }} 
+          name="auth"
+          options={{ headerShown: false }}
         />
 
         {/* Main Application */}

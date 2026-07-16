@@ -231,7 +231,7 @@ export default function SignupScreen() {
                 {error || passError}
               </Text>
             )}
-            <Link href="/auth/SignupScreen" style={styles.linkContainer}>
+            <Link href="/auth/LoginScreen" style={styles.linkContainer}>
               <Text style={styles.linkText}>
                 Vous avez déjà un compte ? <Text style={styles.linkAccent}>Connectez-vous</Text>
               </Text>
