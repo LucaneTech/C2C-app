@@ -7,7 +7,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false, // Hide text labels as shown in the image
+        tabBarShowLabel: true, // Hide text labels as shown in the image
         tabBarStyle: styles.tabBar,
       }}
     >
@@ -15,12 +15,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+
           tabBarIcon: ({ focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
-              <Ionicons 
-                name={focused ? "home" : "home-outline"} 
-                size={25} 
-                color={focused ? "#0a2540" : "#ffffff"} 
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={25}
+                color={focused ? "#0a2540" : "#ffffff"}
               />
             </View>
           ),
@@ -28,7 +29,7 @@ export default function TabLayout() {
       />
 
       {/* 2. Explore / Compass Tab */}
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="setting"
         options={{
           tabBarIcon: ({ focused }) => (
@@ -41,39 +42,55 @@ export default function TabLayout() {
             </View>
           ),
         }}
-      />
+      /> */}
 
       {/* 3. Marketplace / Bag Tab */}
-      {/* <Tabs.Screen
-        name="marketplace"
+      <Tabs.Screen
+        name="order"
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
-              <Ionicons 
-                name={focused ? "bag" : "bag-outline"} 
-                size={25} 
-                color={focused ? "#0a2540" : "#A1A1AA"} 
+              <Ionicons
+                name={focused ? "bag" : "bag-outline"}
+                size={25}
+                color={focused ? "#0a2540" : "#ffffff"}
               />
             </View>
           ),
         }}
-      /> */}
+      />
+      <Tabs.Screen
+        name="message"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
+              <Ionicons
+                name={focused ? "archive" : "archive-outline"}
+                size={22} // Taille légèrement réduite pour un rendu plus fin et professionnel
+                color={focused ? "#0A2540" : "#FFFFFF"}
+              />
+            </View>
+          ),
+        }}
+      />
 
       {/* 4. Profile Tab */}
-      {/* <Tabs.Screen
+      <Tabs.Screen
         name="profile"
+
         options={{
+
           tabBarIcon: ({ focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
-              <Ionicons 
-                name={focused ? "person" : "person-outline"} 
-                size={25} 
-                color={focused ? "#0a2540" : "#A1A1AA"} 
+              <Ionicons
+                name={focused ? "person" : "person-outline"}
+                size={25}
+                color={focused ? "#0a2540" : "#ffffff"}
               />
             </View>
           ),
         }}
-      /> */}
+      />
     </Tabs>
   );
 }
@@ -98,14 +115,14 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 8,
     // Horizontal spacing alignment for items
-    paddingBottom: 25, 
+    paddingBottom: 25,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 10,
-    borderWidth:2,
+    borderWidth: 2,
     borderColor: "#ffd053",
-    
+
   },
   /**
    * Base styling for all tab icons to ensure proper alignment

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { UserProvider } from '../context/UserContext';
 import * as Linking from 'expo-linking';
+import { RefreshProvider } from '@/context/RefreshContext';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -110,6 +111,7 @@ export default function RootLayout() {
   }
 
   return (
+    <RefreshProvider>
     <UserProvider>
       <Stack>
         {/* Get Started Home Screen */}
@@ -132,7 +134,7 @@ export default function RootLayout() {
 
         {/* Detail Screen */}
         <Stack.Screen 
-          name="instruments/[id]" 
+          name="listings/[id]" 
           options={{ 
             title: "Détails de l'instrument",
             headerStyle: { backgroundColor: '#FFFFFF' },
@@ -143,5 +145,6 @@ export default function RootLayout() {
         />
       </Stack>
     </UserProvider>
+    </RefreshProvider>
   );
 }

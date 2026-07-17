@@ -48,7 +48,7 @@ export default function SignupScreen() {
       return;
     }
     setPassError(null);
-    handleSignUp({ role: role, phone: phone, full_name: "Francisco" });
+    handleSignUp({ role: role, phone: phone});
   };
 
   return (

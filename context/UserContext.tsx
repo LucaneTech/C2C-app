@@ -9,6 +9,8 @@ export interface UserProfile {
   phone: string;
   role: 'customer' | 'seller';
   full_name: string | null;
+  city: string;
+  avatar_url:string;
   updated_at: string;
 }
 
@@ -32,6 +34,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // fetch profile function from a public table "Profiles" in supabase
   async function fetchProfile(userId: string) {
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw authError;
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -42,7 +47,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         console.error('Erreur lors de la récupération du profil:', error.message);
         setProfile(null);
       } else {
-        setProfile(data as UserProfile);
+        setProfile({ ...data, email: user.email } as UserProfile);
       }
     } catch (err) {
       console.error('Erreur inattendue de profil:', err);

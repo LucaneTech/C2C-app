@@ -138,6 +138,7 @@ export function useAuth() {
    * Inscription de l'utilisateur avec métadonnées optionnelles (ex: rôle)
    */
   async function handleSignUp(metadata?: Record<string, any>): Promise<void> {
+    const redirectTo = Linking.createURL('/auth/LoginScreen'); // Redirection après confirmation email
     if (!email.trim() || !password.trim()) {
       const msg = 'Veuillez remplir tous les champs.';
       setError(msg);
@@ -155,7 +156,9 @@ export function useAuth() {
       } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
+
         options: {
+          emailRedirectTo: redirectTo,
           data: metadata || {},
         },
       });
