@@ -3,7 +3,9 @@ import { useAuth } from '@/hook/UseAuth';
 import { useUserProfil } from '@/hook/useUserProfil';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+
 import {
     ActivityIndicator,
     Alert,
@@ -20,9 +22,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  
+  const router = useRouter()
   // Hooks globaux
   const { profile, loading, refreshProfile } = useUserProfil();
   const { handleSignOut } = useAuth();
@@ -191,6 +194,16 @@ export default function ProfileScreen() {
               <Text style={styles.actionMenuText}>Modifier mon compte</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </Pressable>
+
+           <Pressable style={styles.menuItem} onPress={() => router.push('/(seller)/orders')}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIconContainer, { backgroundColor: '#f0dd0e2a' }]}>
+                <Ionicons name="bag-outline" size={20} color="#D4AF37" />
+              </View>
+              <Text style={styles.actionMenuText2}>Voir les commandes clients</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
           </Pressable>
 
           {/* Bouton Se Déconnecter */}
@@ -456,6 +469,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#0A2540',
+  },
+  actionMenuText2: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#D4AF37',
   },
   btnIcon: {
     marginRight: 8,

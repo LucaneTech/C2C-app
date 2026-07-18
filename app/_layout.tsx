@@ -132,6 +132,11 @@ export default function RootLayout() {
           options={{ headerShown: false }} 
         />
 
+        <Stack.Screen 
+          name="(seller)" 
+          options={{ headerShown: false }} 
+        />
+
         {/* Detail Screen */}
         <Stack.Screen 
           name="listings/[id]" 
