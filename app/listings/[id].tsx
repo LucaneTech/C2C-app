@@ -1,21 +1,21 @@
-import { Stack, useLocalSearchParams, router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { 
-  ActivityIndicator, 
-  StyleSheet, 
-  Text, 
-  View, 
-  ScrollView, 
-  Image, 
-  Pressable, 
-  Dimensions,
-  FlatList,
-  Linking,
-  Alert
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -37,8 +37,8 @@ type ListingDetails = {
     id: string;
     full_name: string | null;
     avatar_url: string | null;
-    city: string | null;   // Ajout de la ville
-    phone: string | null;  // Ajout du téléphone pour WhatsApp
+    city: string | null;   
+    phone: string | null;  
   } | null;
 };
 
@@ -56,6 +56,10 @@ export default function ListingDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // États pour la gestion du panier
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -67,7 +71,13 @@ export default function ListingDetailScreen() {
       }
 
       try {
-        // 1. Récupérer l'annonce principale avec les détails du vendeur (city et phone inclus)
+        // Récupérer l'ID de l'utilisateur connecté actuel
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setCurrentUserId(user.id);
+        }
+
+        // Récupérer l'annonce principale avec les détails du vendeur
         const { data: mainData, error: fetchError } = await supabase
           .from('listings')
           .select(`
@@ -92,7 +102,7 @@ export default function ListingDetailScreen() {
           const fetchedListing = mainData as unknown as ListingDetails;
           setListing(fetchedListing);
 
-          // 2. Récupérer les articles similaires de la même catégorie
+          // Récupérer les articles similaires de la même catégorie
           if (fetchedListing.category_id) {
             const { data: similarData, error: similarError } = await supabase
               .from('listings')
@@ -118,11 +128,77 @@ export default function ListingDetailScreen() {
     getListingAndSimilar();
   }, [id]);
 
-  // Fonction sécurisée pour initier le chat WhatsApp
+  // Fonction d'implémentation d'ajout au panier / système de commande
+  const handlePlaceOrder = async () => {
+    if (!listing) return;
+
+    if (!currentUserId) {
+      Alert.alert("Connexion requise", "Veuillez vous connecter pour ajouter cet article à votre panier.");
+      return;
+    }
+
+    // Sécurité : Un vendeur ne peut pas ajouter son propre produit au panier
+    if (currentUserId === listing.vendor?.id) {
+      Alert.alert("Action impossible", "Vous ne pouvez pas ajouter votre propre article au panier.");
+      return;
+    }
+
+    // Sécurité supplémentaire sur le stock avant la requête
+    if (listing.quantity < 1) {
+      Alert.alert("Rupture de stock", "Cet article n'est plus disponible.");
+      return;
+    }
+
+    setSubmittingOrder(true);
+
+    try {
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          listing_id: listing.id,
+          buyer_id: currentUserId,
+          vendor_id: listing.vendor?.id,
+          quantity: 1, // Quantité initiale unitaire lors de l'ajout rapide
+          status: 'pending'
+        });
+
+      if (orderError) {
+        // Code d'erreur PostgreSQL pour violation de contrainte unique (déjà présent)
+        if (orderError.code === '23505') {
+          Alert.alert(
+            "Déjà au panier", 
+            "Cet article est déjà dans votre panier. Vous pouvez modifier sa quantité directement depuis votre panier.",
+            [
+              { text: "Continuer" },
+              { text: "Voir le panier", onPress: () => router.push('/cart') }
+            ]
+          );
+          return;
+        }
+        throw orderError;
+      }
+
+      Alert.alert(
+        "Ajouté au panier !",
+        `"${listing.title}" a bien été ajouté à votre panier de réservation.`,
+        [
+          { text: "Continuer mes achats" },
+          { text: "Voir le panier", onPress: () => router.push('/cart') }
+        ]
+      );
+
+    } catch (err: any) {
+      console.error('Erreur lors de la réservation :', err);
+      Alert.alert('Erreur', err.message || "Impossible d'ajouter cet article au panier pour le moment.");
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  // Fonction pour lancer le chat WhatsApp avec le vendeur
   const handleWhatsAppContact = async () => {
     if (!listing?.vendor?.phone) return;
 
-    // Nettoyage du numéro de téléphone (conserver uniquement les chiffres)
     const cleanedPhone = listing.vendor.phone.replace(/[^0-9]/g, '');
     
     if (!cleanedPhone) {
@@ -139,7 +215,6 @@ export default function ListingDetailScreen() {
       if (canOpen) {
         await Linking.openURL(whatsappUrl);
       } else {
-        // Alternative si l'application WhatsApp n'est pas installée sur l'appareil (redirection web)
         await Linking.openURL(webWhatsappUrl);
       }
     } catch (err) {
@@ -167,6 +242,7 @@ export default function ListingDetailScreen() {
   }
 
   const isOutOfStock = listing.quantity <= 0;
+  const isOwnListing = currentUserId === listing.vendor?.id;
   const hasPhone = !!listing.vendor?.phone && listing.vendor.phone.trim().length > 0;
   const formattedDate = new Date(listing.created_at).toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -319,7 +395,7 @@ export default function ListingDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Barre d'Action Premium avec intégration WhatsApp */}
+      {/* Barre d'Action avec intégration Panier & WhatsApp */}
       <View style={[
         styles.bottomActionBar, 
         { 
@@ -328,31 +404,43 @@ export default function ListingDetailScreen() {
         }
       ]}>
         <View style={styles.barPriceContainer}>
-          <Text style={styles.barPriceLabel}>Prix total</Text>
+          <Text style={styles.barPriceLabel}>Prix unitaire</Text>
           <Text style={styles.barPriceValue} numberOfLines={1}>
-            {Number(listing.price).toFixed(2)} $
+            {Number(listing.price).toFixed(2)} Dhs
           </Text>
         </View>
 
         <View style={styles.actionsContainer}>
-          {/* Bouton WhatsApp - Affiché uniquement si le téléphone existe */}
+          {/* Bouton WhatsApp - Désactivé si rupture ou si propriétaire de l'annonce */}
           {hasPhone && (
             <Pressable 
-              style={[styles.whatsappButton, isOutOfStock && styles.actionButtonDisabled]}
-              disabled={isOutOfStock}
+              style={[styles.whatsappButton, (isOutOfStock || isOwnListing) && styles.actionButtonDisabled]}
+              disabled={isOutOfStock || isOwnListing}
               onPress={handleWhatsAppContact}
             >
               <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
             </Pressable>
           )}
 
-          {/* Bouton Contacter classique */}
+          {/* Bouton d'action "Ajouter au Panier" */}
           <Pressable 
-            style={[styles.actionButton, isOutOfStock && styles.actionButtonDisabled]}
-            disabled={isOutOfStock}
+            style={[
+              styles.actionButton, 
+              (isOutOfStock || isOwnListing || submittingOrder) && styles.actionButtonDisabled
+            ]}
+            disabled={isOutOfStock || isOwnListing || submittingOrder}
+            onPress={handlePlaceOrder}
           >
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
-            <Text style={styles.actionButtonText} numberOfLines={1}>Contacter</Text>
+            {submittingOrder ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="basket-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                <Text style={styles.actionButtonText} numberOfLines={1}>
+                  {isOwnListing ? "Mon annonce" : "Ajouter au panier"}
+                </Text>
+              </>
+            )}
           </Pressable>
         </View>
       </View>

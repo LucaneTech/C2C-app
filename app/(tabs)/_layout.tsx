@@ -46,7 +46,7 @@ export default function TabLayout() {
 
       {/* 3. Marketplace / Bag Tab */}
       <Tabs.Screen
-        name="order"
+        name="orders"
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
@@ -59,8 +59,8 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="message"
+      {/* <Tabs.Screen
+        name="orders"
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
@@ -72,7 +72,7 @@ export default function TabLayout() {
             </View>
           ),
         }}
-      />
+      /> */}
 
       {/* 4. Profile Tab */}
       <Tabs.Screen

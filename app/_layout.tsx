@@ -143,6 +143,17 @@ export default function RootLayout() {
             headerBackTitle: "Retour" 
           }} 
         />
+
+        <Stack.Screen 
+          name="cart" 
+          options={{ 
+            title: "",
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTintColor: '#0A2540',
+            headerTitleStyle: { fontWeight: '600' },
+            headerBackTitle: "Retour" 
+          }} 
+        />
       </Stack>
     </UserProvider>
     </RefreshProvider>

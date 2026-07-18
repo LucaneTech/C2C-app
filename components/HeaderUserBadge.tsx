@@ -1,20 +1,79 @@
 import { useUserProfil } from '@/hook/useUserProfil';
-import { useState } from 'react';
-import { Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import SignOutButton from './SignoutButton';
-
-const { width, height } = Dimensions.get('window');
 
 export default function HeaderUserBadge() {
+  const router = useRouter();
   const { profile, loading } = useUserProfil();
-  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [cartCount, setCartCount] = useState<number>(0);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Récupération initiale et écoute en temps réel de la table 'orders'
+  useEffect(() => {
+    let channel: any;
+
+    const initCartSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fonction pour récupérer le nombre de commandes en statut "pending"
+      const fetchCount = async () => {
+        const { count, error } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('buyer_id', user.id)
+          .eq('status', 'pending');
+
+        if (!error && count !== null) {
+          setCartCount(count);
+          
+          // Micro-interaction lors de la mise à jour du compteur
+          Animated.sequence([
+            Animated.timing(scaleAnim, { toValue: 1.2, duration: 150, useNativeDriver: true }),
+            Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+          ]).start();
+        }
+      };
+
+      // 1. Appel initial
+      await fetchCount();
+
+      // 2. Configuration et abonnement en une seule chaîne continue
+      channel = supabase
+        .channel(`public:orders:buyer_id=${user.id}`)
+        .on(
+          'postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'orders', 
+            filter: `buyer_id=eq.${user.id}` 
+          },
+          () => {
+            fetchCount();
+          }
+        )
+        .subscribe(); // Le .subscribe() est chaîné directement ici
+    };
+
+    initCartSubscription();
+
+    // Nettoyage à la destruction du composant
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   if (loading) {
     return (
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.headerContainer}>
-          <Text style={styles.loadingText}>Chargement...</Text>
+          <View style={styles.skeletonText} />
+          <View style={styles.skeletonAvatar} />
         </View>
       </SafeAreaView>
     );
@@ -28,62 +87,42 @@ export default function HeaderUserBadge() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.headerContainer}>
         
-        {/* Left Section: User Info and Role Badges */}
-        <View style={styles.leftSection}>
-          <View>
-            <Text style={styles.welcomeText}>Bonjour 👋</Text>
-            <Text style={styles.userNameText} numberOfLines={1}>
+        {/* Section Profil : Avatar carré + Identité */}
+        <TouchableOpacity 
+          style={styles.profileClickable}
+          activeOpacity={0.7}
+          onPress={() => router.push('/profile')}
+        >
+          <View style={styles.avatarWrapper}>
+            <Text style={styles.avatarText}>{userInitials}</Text>
+            <View style={styles.onlineIndicator} />
+          </View>
+          
+          <View style={styles.textContainer}>
+            <Text style={styles.greetingText}>Bienvenue</Text>
+            <Text style={styles.userName} numberOfLines={1}>
               {profile?.full_name || profile?.email?.split('@')[0] || 'Utilisateur'}
             </Text>
           </View>
-          
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>
-              {profile?.role === 'seller' ? 'Vendeur' : 'Acheteur'}
-            </Text>
-          </View>
-        </View>
+        </TouchableOpacity>
 
-        {/* Right Section: Interactive Avatar and Dropdown */}
-        <View style={styles.rightSection}>
+        {/* Section Actions : Panier épuré sans angles arrondis prononcés */}
+        <View style={styles.actionContainer}>
           <TouchableOpacity
-            onPress={() => setDropdownVisible(!dropdownVisible)}
-            activeOpacity={0.8}
-            style={[
-              styles.avatarContainer,
-              dropdownVisible && styles.avatarActiveBorder
-            ]}
+            onPress={() => router.push('/cart')}
+            activeOpacity={0.6}
+            style={styles.iconButton}
           >
-            <Text style={styles.avatarText}>{userInitials}</Text>
+            <Ionicons name="bag-handle-outline" size={20} color="#09090B" />
+            
+            {cartCount > 0 && (
+              <Animated.View style={[styles.badgeContainer, { transform: [{ scale: scaleAnim }] }]}>
+                <Text style={styles.badgeText}>
+                  {cartCount > 99 ? '99+' : cartCount}
+                </Text>
+              </Animated.View>
+            )}
           </TouchableOpacity>
-
-          {dropdownVisible && (
-            <>
-              {/* Invisible Overlay to close dropdown and block touches on background elements */}
-              <TouchableOpacity
-                style={styles.globalOverlay}
-                activeOpacity={1}
-                onPress={() => setDropdownVisible(false)}
-              />
-
-              {/* Floating Dropdown Menu (On top of everything) */}
-              <View style={styles.dropdownMenu}>
-                <View style={styles.dropdownHeader}>
-                  <Text style={styles.dropdownUserEmail} numberOfLines={1}>
-                    {profile?.email || 'Mon profil'}
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                
-                <TouchableOpacity 
-                  onPress={() => setDropdownVisible(false)}
-                  activeOpacity={1}
-                >
-                  <SignOutButton variant="solid" />
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
         </View>
 
       </View>
@@ -93,8 +132,7 @@ export default function HeaderUserBadge() {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#ffff',
-    zIndex: 999, // High zIndex for the header container itself
+    backgroundColor: '#FFFFFF',
   },
   headerContainer: {
     flexDirection: 'row',
@@ -104,118 +142,102 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    position: 'relative',
+    borderBottomColor: '#F4F4F5',
   },
-  leftSection: {
+  profileClickable: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     flex: 1,
   },
-  rightSection: {
-    position: 'relative',
-    zIndex: 1000, // Forces the child absolute dropdown above all siblings
-  },
-  welcomeText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  userNameText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginTop: 1,
-    maxWidth: 150,
-  },
-  roleBadge: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    alignSelf: 'center',
-  },
-  roleText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#0A2540',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  avatarContainer: {
+  avatarWrapper: {
     width: 40,
     height: 40,
-    backgroundColor: '#0A2540',
-    borderRadius: 50,
+    borderRadius: 50, // Lignes géométriques
+    backgroundColor: '#09090B',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    zIndex: 1002, // Higher than the overlay to remain clickable
-  },
-  avatarActiveBorder: {
-    borderColor: '#D4AF37',
+    position: 'relative',
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  loadingText: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  /* --- Fullscreen Invisible Interceptor --- */
-  globalOverlay: {
+  onlineIndicator: {
     position: 'absolute',
-    top: -100, // Cover safe area top offset
-    right: -100,
-    width: width * 1.5,
-    height: height * 1.5,
-    backgroundColor: 'transparent',
-    zIndex: 1000,
-  },
-  /* --- Dropdown Menu Design --- */
-  dropdownMenu: {
-    position: 'absolute',
-    top: 48,
+    bottom: -4,
     right: 0,
-    width: 180,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    zIndex: 1001, // Layered on top of the overlay
-    ...Platform.select({
-      ios: {
-        shadowColor: '#0A2540',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 24, // Maximum Android elevation to guarantee overlay order
-      },
-    }),
+    width: 12,
+    height: 12,
+    borderRadius: 50,
+    backgroundColor: '#16A34A',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
-  dropdownHeader: {
-    paddingBottom: 8,
-    paddingHorizontal: 4,
+  textContainer: {
+    marginLeft: 14,
+    justifyContent: 'center',
   },
-  dropdownUserEmail: {
+  greetingText: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: '#71717A',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginBottom: 8,
+  userName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#09090B',
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
+  actionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 50,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#f51000',
+    borderRadius: 50,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  skeletonText: {
+    width: 110,
+    height: 18,
+    backgroundColor: '#F4F4F5',
+    borderRadius: 2,
+  },
+  skeletonAvatar: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#F4F4F5',
+    borderRadius: 2,
   },
 });
