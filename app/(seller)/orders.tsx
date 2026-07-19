@@ -27,7 +27,7 @@ interface Order {
     price: number;
     image?: string; // Ajout de l'image de l'article
   } | null;
-  profiles: { // Ajout des informations de l'acheteur (liées via buyer_id)
+  profiles: {
     full_name?: string;
     phone?: string;
     city?: string;
