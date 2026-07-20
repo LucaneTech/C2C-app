@@ -21,7 +21,6 @@ const { width } = Dimensions.get('window');
 type CartItem = {
   id: string;
   quantity: number;
-  status: string;
   listing_id: number;
   listings: {
     id: number;
@@ -32,40 +31,93 @@ type CartItem = {
   };
 };
 
+type RecommendationItem = {
+  id: number;
+  title: string;
+  price: number;
+  image: string | null;
+};
+
 export default function CartScreen() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const insets = useSafeAreaInsets();
   const FLOATING_TAB_BAR_HEIGHT = 80;
 
+  // Safely fetch cart records targeting the public.cart table structure
   const fetchCart = async (isRefreshing = false) => {
     try {
       if (!isRefreshing) setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) return;
 
       const { data, error } = await supabase
-        .from('orders')
+        .from('cart')
         .select(`
           id,
           quantity,
-          status,
           listing_id,
-          listings:listing_id(id, title, price, image, quantity)
+          listings(id, title, price, image, quantity)
         `)
-        .eq('buyer_id', user.id)
-        .eq('status', 'pending');
+        .eq('user_id', user.id);
 
       if (error) throw error;
-      setCartItems((data as any) || []);
-    } catch (error) {
-      console.error('Erreur chargement panier:', error);
+      
+      const fetchedCartItems = (data as any) || [];
+      setCartItems(fetchedCartItems);
+
+      // Trigger recommendation fetch loop if items exist in the cart
+      if (fetchedCartItems.length > 0) {
+        await fetchPriceBasedRecommendations(fetchedCartItems);
+      } else {
+        setRecommendations([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching cart data cleanly:', error);
+      Alert.alert('Erreur', 'Impossible de charger les éléments du panier.');
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  // Safe search logic to fetch items with similar pricing architectures
+  const fetchPriceBasedRecommendations = async (currentCart: CartItem[]) => {
+    try {
+      // Aggregate unique listing ids to prevent self-recommendation
+      const excludedIds = currentCart.map(item => item.listing_id);
+      
+      // Compute price range criteria based on the first item in the cart array
+      const targetPrice = currentCart[0]?.listings?.price || 0;
+      const minPrice = targetPrice * 0.7; // 30% below target price
+      const maxPrice = targetPrice * 1.3; // 30% above target price
+
+      const { data, error } = await supabase
+        .from('listings')
+        .select('id, title, price, image')
+        .eq('status', 'active')
+        .gte('price', minPrice)
+        .lte('price', maxPrice)
+        .not('id', 'in', `(${excludedIds.join(',')})`)
+        .limit(10);
+
+      if (error) throw error;
+
+      if (data) {
+        // Shuffle results array randomly to alter display order on every load execution
+        const randomizedList = [...data].sort(() => Math.random() - 0.5);
+        setRecommendations(randomizedList as RecommendationItem[]);
+      }
+    } catch (recError) {
+      console.error('Failed to load pricing recommendations safely:', recError);
+      setRecommendations([]); // Fail-safe fallback state
     }
   };
 
@@ -78,29 +130,35 @@ export default function CartScreen() {
     fetchCart(true);
   };
 
-  const updateQuantity = async (orderId: string, currentQty: number, stockMax: number, delta: number) => {
+  // Safely update specific item quantity directly inside public.cart table
+  const updateQuantity = async (cartItemId: string, currentQty: number, stockMax: number, delta: number) => {
     const newQty = currentQty + delta;
     if (newQty < 1) return;
     if (newQty > stockMax) {
-      Alert.alert("Limite de stock", `Seulement ${stockMax} unités sont disponibles.`);
+      Alert.alert("Limite de stock", `Seulement ${stockMax} unités sont disponibles pour cet article.`);
       return;
     }
 
+    // Optimistic UI update implementation
+    const previousItems = [...cartItems];
+    setCartItems(prev => prev.map(item => item.id === cartItemId ? { ...item, quantity: newQty } : item));
+
     try {
-      setCartItems(prev => prev.map(item => item.id === orderId ? { ...item, quantity: newQty } : item));
       const { error } = await supabase
-        .from('orders')
+        .from('cart')
         .update({ quantity: newQty })
-        .eq('id', orderId);
+        .eq('id', cartItemId);
 
       if (error) throw error;
     } catch (error) {
-      console.error('Erreur mise à jour quantité:', error);
-      fetchCart(true);
+      console.error('Error updating cart record quantity safely:', error);
+      // Fallback to absolute server state on update failure
+      setCartItems(previousItems);
     }
   };
 
-  const removeItem = async (orderId: string) => {
+  // Safely remove a single record from the public.cart table
+  const removeItem = async (cartItemId: string) => {
     Alert.alert(
       "Retirer l'article",
       "Voulez-vous vraiment retirer cet article de votre sélection ?",
@@ -111,20 +169,26 @@ export default function CartScreen() {
           style: "destructive",
           onPress: async () => {
             const previousItems = [...cartItems];
-            setCartItems(prev => prev.filter(item => item.id !== orderId));
+            const updatedItems = cartItems.filter(item => item.id !== cartItemId);
+            setCartItems(updatedItems);
 
             try {
               const { error } = await supabase
-                .from('orders')
+                .from('cart')
                 .delete()
-                .eq('id', orderId);
+                .eq('id', cartItemId);
 
-              if (error) {
-                Alert.alert("Erreur", error.message);
-                setCartItems(previousItems);
+              if (error) throw error;
+              
+              // Dynamically re-evaluate recommendations state on array changes
+              if (updatedItems.length > 0) {
+                await fetchPriceBasedRecommendations(updatedItems);
+              } else {
+                setRecommendations([]);
               }
             } catch (error: any) {
-              console.error('Erreur suppression article:', error);
+              console.error('Error handling single record cart drop execution:', error);
+              Alert.alert("Erreur", "Impossible de supprimer l'article pour le moment.");
               setCartItems(previousItems);
             }
           }
@@ -133,8 +197,44 @@ export default function CartScreen() {
     );
   };
 
+  // Safe transactional checkout pipeline leveraging the PostgreSQL RPC method
+  const handleConfirmCheckout = async () => {
+    if (cartItems.length === 0 || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      
+      if (!user) {
+        Alert.alert('Connexion requise', 'Veuillez vous connecter pour valider votre panier.');
+        return;
+      }
+
+      // Execute database logic: transfers cart rows to structural orders table atomically
+      const { error: rpcError } = await supabase.rpc('convert_cart_to_orders', {
+        p_buyer_id: user.id,
+      });
+
+      if (rpcError) throw rpcError;
+
+      Alert.alert(
+        'Commande validée !',
+        'Votre sélection a été transmise avec succès aux vendeurs correspondants.',
+        [{ text: 'Super', onPress: () => router.replace('/(tabs)/orders') }]
+      );
+      
+    } catch (error: any) {
+      console.error('Transactional error captured inside checkout loop:', error);
+      Alert.alert('Échec de validation', error.message || 'Une erreur système est survenue.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const calculateTotal = () => {
-    return cartItems.reduce((sum, item) => sum + (item.listings?.price * item.quantity), 0);
+    return cartItems.reduce((sum, item) => sum + ((item.listings?.price || 0) * item.quantity), 0);
   };
 
   if (loading) {
@@ -147,7 +247,7 @@ export default function CartScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header Minimaliste Linéaire */}
+      {/* Minimalist Linear Header Layout */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Mon Panier</Text>
@@ -208,10 +308,10 @@ export default function CartScreen() {
 
                 <View style={styles.actionRow}>
                   <Text style={styles.itemPrice}>
-                    {item.listings.price.toLocaleString('fr-FR')} Dhs
+                    {Number(item.listings.price || 0).toLocaleString('fr-FR')} Dhs
                   </Text>
 
-                  {/* Sélecteur de quantité carré et moderne */}
+                  {/* Squared modern quantity adjuster */}
                   <View style={styles.quantitySelector}>
                     <Pressable
                       style={styles.qtyBtn}
@@ -232,9 +332,49 @@ export default function CartScreen() {
             </View>
           );
         }}
+        ListFooterComponent={
+          cartItems.length > 0 && recommendations.length > 0 ? (
+            <View style={styles.recommendationsContainer}>
+              <View style={styles.recHeaderRow}>
+                <Text style={styles.recSectionTitle}>Sélectionné pour vous</Text>
+                <View style={styles.recBadge}>
+                  <Text style={styles.recBadgeText}>Prix similaire</Text>
+                </View>
+              </View>
+              <FlatList
+                data={recommendations}
+                
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.recHorizontalList}
+                renderItem={({ item }) => (
+                  <Pressable 
+                    style={styles.recCard}
+                    onPress={() => router.push(`/listings/${item.id}`)}
+                  >
+                    <View style={styles.recImageWrapper}>
+                      {item.image ? (
+                        <Image source={{ uri: item.image }} style={styles.recImage} />
+                      ) : (
+                        <View style={styles.recPlaceholder}>
+                          <Ionicons name="image-outline" size={20} color="#A1A1AA" />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.recTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.recPrice}>
+                      {Number(item.price || 0).toLocaleString('fr-FR')} Dhs
+                    </Text>
+                  </Pressable>
+                )}
+              />
+            </View>
+          ) : null
+        }
       />
 
-      {/* Zone de validation et redirection vers l'écran de commandes */}
+      {/* Checkout control component rendering overlay */}
       {cartItems.length > 0 && (
         <View style={[
           styles.footerWrapper,
@@ -252,14 +392,21 @@ export default function CartScreen() {
             </View>
 
             <Pressable
-              style={({ pressed }) => [styles.checkoutButton, pressed && styles.checkoutButtonPressed]}
-              onPress={() => {
-                // Redirection vers l'écran des commandes / historique
-                router.push('/(tabs)/orders'); 
-              }}
+              style={({ pressed }) => [
+                styles.checkoutButton, 
+                (pressed || isSubmitting) && styles.checkoutButtonPressed
+              ]}
+              disabled={isSubmitting}
+              onPress={handleConfirmCheckout}
             >
-              <Text style={styles.checkoutText}>CONFIRMER LA SÉLECTION</Text>
-              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={styles.checkoutIcon} />
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#09090B" />
+              ) : (
+                <>
+                  <Text style={styles.checkoutText}>CONFIRMER LA SÉLECTION</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#09090B" style={styles.checkoutIcon} />
+                </>
+              )}
             </Pressable>
           </View>
         </View>
@@ -302,7 +449,7 @@ const styles = StyleSheet.create({
   bagIconContainer: {
     width: 38,
     height: 38,
-    borderRadius: 2, // Architectural / Structure droite
+    borderRadius: 2,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -326,7 +473,7 @@ const styles = StyleSheet.create({
   cartCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 2, // Finition bords angulaires professionnels
+    borderRadius: 2,
     padding: 12,
     marginBottom: 16,
     alignItems: 'center',
@@ -436,6 +583,75 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 18,
   },
+  recommendationsContainer: {
+    marginTop: 24,
+    paddingTop: 8,
+  },
+  recHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  recSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#09090B',
+    letterSpacing: -0.3,
+  },
+  recBadge: {
+    backgroundColor: '#F4F4F5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+  },
+  recBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#71717A',
+  },
+  recHorizontalList: {
+    gap: 12,
+    paddingBottom: 8,
+  },
+  recCard: {
+    width: 140,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    borderRadius: 2,
+    padding: 8,
+  },
+  recImageWrapper: {
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    marginBottom: 8,
+  },
+  recImage: {
+    width: '100%',
+    height: 100,
+    resizeMode: 'cover',
+  },
+  recPlaceholder: {
+    width: '100%',
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#09090B',
+    marginBottom: 4,
+  },
+  recPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#09090B',
+  },
   footerWrapper: {
     position: 'absolute',
     left: 24,
@@ -444,7 +660,7 @@ const styles = StyleSheet.create({
   },
   footerBar: {
     backgroundColor: '#09090B',
-    borderRadius: 2, // Redirection vers un style droit et premium
+    borderRadius: 2,
     padding: 16,
     borderWidth: 1,
     borderColor: '#27272A',
@@ -475,13 +691,13 @@ const styles = StyleSheet.create({
   checkoutButton: {
     backgroundColor: '#FFFFFF',
     height: 48,
-    borderRadius: 2, // Bouton rectangulaire moderne hyper clean
+    borderRadius: 2,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkoutButtonPressed: {
-    opacity: 0.95,
+    opacity: 0.85,
   },
   checkoutIcon: {
     marginLeft: 8,

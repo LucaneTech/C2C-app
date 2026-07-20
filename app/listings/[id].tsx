@@ -56,7 +56,7 @@ export default function ListingDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // États pour la gestion du panier
+  // Cart management states
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
@@ -71,13 +71,19 @@ export default function ListingDetailScreen() {
       }
 
       try {
-        // Récupérer l'ID de l'utilisateur connecté actuel
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setCurrentUserId(user.id);
+        // Safe check to retrieve the authenticated user session
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError) throw authError;
+          if (user) {
+            setCurrentUserId(user.id);
+          }
+        } catch (authErr) {
+          console.error('Failed to fetch authenticated user:', authErr);
+          // Keep execution going, user might browse as a guest safely
         }
 
-        // Récupérer l'annonce principale avec les détails du vendeur
+        // Fetch primary listing data with relational vendor constraints
         const { data: mainData, error: fetchError } = await supabase
           .from('listings')
           .select(`
@@ -102,23 +108,32 @@ export default function ListingDetailScreen() {
           const fetchedListing = mainData as unknown as ListingDetails;
           setListing(fetchedListing);
 
-          // Récupérer les articles similaires de la même catégorie
+          // Fetch items within the same category safely
           if (fetchedListing.category_id) {
-            const { data: similarData, error: similarError } = await supabase
-              .from('listings')
-              .select('id, title, price, image')
-              .eq('category_id', fetchedListing.category_id)
-              .eq('status', 'active')
-              .neq('id', fetchedListing.id)
-              .limit(6);
+            try {
+              const { data: similarData, error: similarError } = await supabase
+                .from('listings')
+                .select('id, title, price, image')
+                .eq('category_id', fetchedListing.category_id)
+                .eq('status', 'active')
+                .neq('id', fetchedListing.id)
+                .limit(6);
 
-            if (!similarError && similarData) {
-              setSimilarListings(similarData as SimilarListing[]);
+              if (similarError) throw similarError;
+              if (similarData) {
+                setSimilarListings(similarData as SimilarListing[]);
+              }
+            } catch (similarErr) {
+              console.error('Failed to load similar listings safely:', similarErr);
+              // Safe fallback: do not crash the view if similar items fail to load
+              setSimilarListings([]);
             }
           }
+        } else {
+          setError('Annonce introuvable.');
         }
-      } catch (err) {
-        console.error('Erreur lors du chargement des données :', err);
+      } catch (err: any) {
+        console.error('Error within getListingAndSimilar timeline:', err);
         setError('Impossible de charger les détails.');
       } finally {
         setLoading(false);
@@ -128,7 +143,7 @@ export default function ListingDetailScreen() {
     getListingAndSimilar();
   }, [id]);
 
-  // Fonction d'implémentation d'ajout au panier / système de commande
+  // Refactored cart system integration targeted on public.cart table
   const handlePlaceOrder = async () => {
     if (!listing) return;
 
@@ -137,13 +152,13 @@ export default function ListingDetailScreen() {
       return;
     }
 
-    // Sécurité : Un vendeur ne peut pas ajouter son propre produit au panier
+    // Safety constraint: block vendors from adding their own listing to their cart
     if (currentUserId === listing.vendor?.id) {
       Alert.alert("Action impossible", "Vous ne pouvez pas ajouter votre propre article au panier.");
       return;
     }
 
-    // Sécurité supplémentaire sur le stock avant la requête
+    // Dynamic stock availability verification
     if (listing.quantity < 1) {
       Alert.alert("Rupture de stock", "Cet article n'est plus disponible.");
       return;
@@ -152,35 +167,55 @@ export default function ListingDetailScreen() {
     setSubmittingOrder(true);
 
     try {
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          listing_id: listing.id,
-          buyer_id: currentUserId,
-          vendor_id: listing.vendor?.id,
-          quantity: 1, // Quantité initiale unitaire lors de l'ajout rapide
-          status: 'pending'
-        });
+      // Step 1: Safely check if the item already exists inside the cart table
+      const { data: existingCartItem, error: checkError } = await supabase
+        .from('cart')
+        .select('id, quantity')
+        .eq('user_id', currentUserId)
+        .eq('listing_id', listing.id)
+        .maybeSingle();
 
-      if (orderError) {
-        // Code d'erreur PostgreSQL pour violation de contrainte unique (déjà présent)
-        if (orderError.code === '23505') {
-          Alert.alert(
-            "Déjà au panier", 
-            "Cet article est déjà dans votre panier. Vous pouvez modifier sa quantité directement depuis votre panier.",
-            [
-              { text: "Continuer" },
-              { text: "Voir le panier", onPress: () => router.push('/cart') }
-            ]
-          );
-          return;
+      if (checkError) throw checkError;
+
+      if (existingCartItem) {
+        // Step 2A: Update existing record incrementing the payload quantity safely
+        const { error: updateError } = await supabase
+          .from('cart')
+          .update({ quantity: existingCartItem.quantity + 1 })
+          .eq('id', existingCartItem.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Step 2B: Run standard insert statement if listing row is totally unique
+        const { error: insertError } = await supabase
+          .from('cart')
+          .insert({
+            user_id: currentUserId,
+            listing_id: listing.id,
+            quantity: 1
+          });
+
+        if (insertError) {
+          // Check for Postgres unique constraint race condition error code
+          if (insertError.code === '23505') {
+            Alert.alert(
+              "Déjà au panier", 
+              "Cet article est déjà dans votre panier. Vous pouvez modifier sa quantité directement depuis votre panier.",
+              [
+                { text: "Continuer" },
+                { text: "Voir le panier", onPress: () => router.push('/cart') }
+              ]
+            );
+            return;
+          }
+          throw insertError;
         }
-        throw orderError;
       }
 
+      // Success feedback alert trigger
       Alert.alert(
         "Ajouté au panier !",
-        `"${listing.title}" a bien été ajouté à votre panier de réservation.`,
+        `"${listing.title}" a bien été ajouté à votre panier.`,
         [
           { text: "Continuer mes achats" },
           { text: "Voir le panier", onPress: () => router.push('/cart') }
@@ -188,29 +223,29 @@ export default function ListingDetailScreen() {
       );
 
     } catch (err: any) {
-      console.error('Erreur lors de la réservation :', err);
+      console.error('Safe catch intercepted a cart action error:', err);
       Alert.alert('Erreur', err.message || "Impossible d'ajouter cet article au panier pour le moment.");
     } finally {
       setSubmittingOrder(false);
     }
   };
 
-  // Fonction pour lancer le chat WhatsApp avec le vendeur
+  // Safe WhatsApp external Deep Linking handler
   const handleWhatsAppContact = async () => {
-    if (!listing?.vendor?.phone) return;
-
-    const cleanedPhone = listing.vendor.phone.replace(/[^0-9]/g, '');
-    
-    if (!cleanedPhone) {
-      Alert.alert('Erreur', 'Le numéro de téléphone du vendeur est invalide.');
-      return;
-    }
-
-    const message = `Bonjour, je suis intéressé par votre annonce "${listing.title}" sur Yabisso.`;
-    const whatsappUrl = `whatsapp://send?phone=${cleanedPhone}&text=${encodeURIComponent(message)}`;
-    const webWhatsappUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(message)}`;
-
     try {
+      if (!listing?.vendor?.phone) return;
+
+      const cleanedPhone = listing.vendor.phone.replace(/[^0-9]/g, '');
+      
+      if (!cleanedPhone) {
+        Alert.alert('Erreur', 'Le numéro de téléphone du vendeur est invalide.');
+        return;
+      }
+
+      const message = `Bonjour, je suis intéressé par votre annonce "${listing.title}" sur Yabisso.`;
+      const whatsappUrl = `whatsapp://send?phone=${cleanedPhone}&text=${encodeURIComponent(message)}`;
+      const webWhatsappUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(message)}`;
+
       const canOpen = await Linking.canOpenURL(whatsappUrl);
       if (canOpen) {
         await Linking.openURL(whatsappUrl);
@@ -218,7 +253,7 @@ export default function ListingDetailScreen() {
         await Linking.openURL(webWhatsappUrl);
       }
     } catch (err) {
-      console.error('Erreur ouverture WhatsApp:', err);
+      console.error('Error handling external communication intent:', err);
       Alert.alert('Erreur', "Impossible d'ouvrir l'application WhatsApp.");
     }
   };
@@ -227,7 +262,7 @@ export default function ListingDetailScreen() {
     return (
       <View style={styles.center}>
         <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator size="large" color="#0A2540" />
+        <ActivityIndicator size="small" color="#0A2540" />
       </View>
     );
   }
@@ -244,11 +279,18 @@ export default function ListingDetailScreen() {
   const isOutOfStock = listing.quantity <= 0;
   const isOwnListing = currentUserId === listing.vendor?.id;
   const hasPhone = !!listing.vendor?.phone && listing.vendor.phone.trim().length > 0;
-  const formattedDate = new Date(listing.created_at).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  
+  // Safe date parser formatting block
+  let formattedDate = '';
+  try {
+    formattedDate = new Date(listing.created_at).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch (dateErr) {
+    formattedDate = 'Récemment';
+  }
 
   return (
     <View style={styles.container}>
@@ -262,7 +304,7 @@ export default function ListingDetailScreen() {
         ]}
       >
         
-        {/* Section Image Principale */}
+        {/* Main Image View Header Section */}
         <View style={styles.imageContainer}>
           {listing.image ? (
             <Image source={{ uri: listing.image }} style={styles.mainImage} resizeMode="cover" />
@@ -286,10 +328,10 @@ export default function ListingDetailScreen() {
           )}
         </View>
 
-        {/* Corps des détails */}
+        {/* Content detail layout details */}
         <View style={styles.detailsContent}>
           
-          {/* Ligne Catégorie & Date */}
+          {/* Metadata structural layer */}
           <View style={styles.metaRow}>
             {listing.category?.name && (
               <View style={styles.categoryBadge}>
@@ -299,13 +341,13 @@ export default function ListingDetailScreen() {
             <Text style={styles.dateText}>Publié le {formattedDate}</Text>
           </View>
 
-          {/* Titre principal */}
+          {/* Core Title */}
           <Text style={styles.title}>{listing.title}</Text>
 
-          {/* Ligne Prix & Stock */}
+          {/* Pricing data and Inventory visualization */}
           <View style={styles.priceStockRow}>
             <Text style={styles.price} numberOfLines={1}>
-              {Number(listing.price).toFixed(2)} Dhs
+              {Number(listing.price || 0).toFixed(2)} Dhs
             </Text>
             <View style={[styles.stockBadge, isOutOfStock ? styles.stockEmpty : styles.stockAvailable]}>
               <View style={[styles.stockDot, { backgroundColor: isOutOfStock ? '#EF4444' : '#10B981' }]} />
@@ -317,7 +359,7 @@ export default function ListingDetailScreen() {
 
           <View style={styles.divider} />
 
-          {/* Section Profil Vendeur */}
+          {/* Merchant vendor details panel */}
           <Text style={styles.sectionTitle}>Vendeur</Text>
           <View style={styles.vendorCard}>
             <View style={styles.vendorAvatarContainer}>
@@ -350,13 +392,13 @@ export default function ListingDetailScreen() {
 
           <View style={styles.divider} />
 
-          {/* Section Description */}
+          {/* Description layout column */}
           <Text style={styles.sectionTitle}>Description du produit</Text>
           <Text style={styles.description}>
             {listing.description || 'Aucune description fournie pour cet article.'}
           </Text>
 
-          {/* Section Articles Similaires */}
+          {/* Recommendations and Similar entities list component */}
           {similarListings.length > 0 && (
             <View style={styles.similarSection}>
               <View style={styles.divider} />
@@ -384,7 +426,7 @@ export default function ListingDetailScreen() {
                       {item.title}
                     </Text>
                     <Text style={styles.similarPrice}>
-                      {Number(item.price).toFixed(2)} Dhs
+                      {Number(item.price || 0).toFixed(2)} Dhs
                     </Text>
                   </Pressable>
                 )}
@@ -395,7 +437,7 @@ export default function ListingDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Barre d'Action avec intégration Panier & WhatsApp */}
+      {/* Primary bottom user utility interaction bar */}
       <View style={[
         styles.bottomActionBar, 
         { 
@@ -406,12 +448,12 @@ export default function ListingDetailScreen() {
         <View style={styles.barPriceContainer}>
           <Text style={styles.barPriceLabel}>Prix unitaire</Text>
           <Text style={styles.barPriceValue} numberOfLines={1}>
-            {Number(listing.price).toFixed(2)} Dhs
+            {Number(listing.price || 0).toFixed(2)} Dhs
           </Text>
         </View>
 
         <View style={styles.actionsContainer}>
-          {/* Bouton WhatsApp - Désactivé si rupture ou si propriétaire de l'annonce */}
+          {/* External application trigger for WhatsApp communication */}
           {hasPhone && (
             <Pressable 
               style={[styles.whatsappButton, (isOutOfStock || isOwnListing) && styles.actionButtonDisabled]}
@@ -422,7 +464,7 @@ export default function ListingDetailScreen() {
             </Pressable>
           )}
 
-          {/* Bouton d'action "Ajouter au Panier" */}
+          {/* Main Action Call interface mapped into public.cart operations */}
           <Pressable 
             style={[
               styles.actionButton, 

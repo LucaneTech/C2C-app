@@ -12,7 +12,6 @@ export default function HeaderUserBadge() {
   const [cartCount, setCartCount] = useState<number>(0);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Récupération initiale et écoute en temps réel de la table 'orders'
   useEffect(() => {
     let channel: any;
 
@@ -20,18 +19,16 @@ export default function HeaderUserBadge() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fonction pour récupérer le nombre de commandes en statut "pending"
       const fetchCount = async () => {
-        const { count, error } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('buyer_id', user.id)
-          .eq('status', 'pending');
+        const { data, error } = await supabase
+          .from('cart')
+          .select('quantity')
+          .eq('user_id', user.id);
 
-        if (!error && count !== null) {
-          setCartCount(count);
+        if (!error && data) {
+          const totalQuantity = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
+          setCartCount(totalQuantity);
           
-          // Micro-interaction lors de la mise à jour du compteur
           Animated.sequence([
             Animated.timing(scaleAnim, { toValue: 1.2, duration: 150, useNativeDriver: true }),
             Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
@@ -39,30 +36,32 @@ export default function HeaderUserBadge() {
         }
       };
 
-      // 1. Appel initial
+      // 1. Initialisation des données
       await fetchCount();
 
-      // 2. Configuration et abonnement en une seule chaîne continue
-      channel = supabase
-        .channel(`public:orders:buyer_id=${user.id}`)
+      // 2. Création et configuration du canal (sans subscribe instantané)
+      const newChannel = supabase
+        .channel(`public:cart:user_id=${user.id}`)
         .on(
           'postgres_changes',
           { 
             event: '*', 
             schema: 'public', 
-            table: 'orders', 
-            filter: `buyer_id=eq.${user.id}` 
+            table: 'cart', 
+            filter: `user_id=eq.${user.id}` 
           },
           () => {
             fetchCount();
           }
-        )
-        .subscribe(); // Le .subscribe() est chaîné directement ici
+        );
+
+      // 3. Activation de l'abonnement
+      newChannel.subscribe();
+      channel = newChannel;
     };
 
     initCartSubscription();
 
-    // Nettoyage à la destruction du composant
     return () => {
       if (channel) supabase.removeChannel(channel);
     };
@@ -87,7 +86,6 @@ export default function HeaderUserBadge() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.headerContainer}>
         
-        {/* Section Profil : Avatar carré + Identité */}
         <TouchableOpacity 
           style={styles.profileClickable}
           activeOpacity={0.7}
@@ -106,7 +104,6 @@ export default function HeaderUserBadge() {
           </View>
         </TouchableOpacity>
 
-        {/* Section Actions : Panier épuré sans angles arrondis prononcés */}
         <View style={styles.actionContainer}>
           <TouchableOpacity
             onPress={() => router.push('/cart')}
@@ -152,7 +149,7 @@ const styles = StyleSheet.create({
   avatarWrapper: {
     width: 40,
     height: 40,
-    borderRadius: 50, // Lignes géométriques
+    borderRadius: 50,
     backgroundColor: '#09090B',
     justifyContent: 'center',
     alignItems: 'center',

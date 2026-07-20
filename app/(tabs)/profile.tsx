@@ -22,10 +22,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter()
+  const router = useRouter();
+  
   // Hooks globaux
   const { profile, loading, refreshProfile } = useUserProfil();
   const { handleSignOut } = useAuth();
@@ -127,7 +127,7 @@ export default function ProfileScreen() {
           <Text style={styles.headerSubtitle}>Configurez votre profil et vos préférences</Text>
         </View>
 
-        {/* Section Identité (Minimaliste & Épurée) */}
+        {/* Section Identité */}
         <View style={styles.identityContainer}>
           <View style={styles.avatarWrapper}>
             {profile?.avatar_url ? (
@@ -150,7 +150,7 @@ export default function ProfileScreen() {
           <Text style={styles.profileEmail}>{profile?.email || 'Aucune adresse e-mail'}</Text>
         </View>
 
-        {/* Groupe 1 : Détails Personnels (Style Menu Liste Premium) */}
+        {/* Groupe 1 : Détails Personnels */}
         <View style={styles.menuGroup}>
           <Text style={styles.menuGroupTitle}>Vos informations</Text>
           
@@ -171,7 +171,7 @@ export default function ProfileScreen() {
           <View style={[styles.menuItem, styles.noBorder]}>
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconContainer}>
-                <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+                <Ionicons name="logo-whatsapp" size={20} color="#777779" />
               </View>
               <View>
                 <Text style={styles.menuItemLabel}>Numéro WhatsApp</Text>
@@ -188,17 +188,18 @@ export default function ProfileScreen() {
           {/* Bouton de modification */}
           <Pressable style={styles.menuItem} onPress={() => setIsModalOpen(true)}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, { backgroundColor: '#F1F5F9' }]}>
+              <View style={[styles.menuIconContainer, { backgroundColor: '#F4F4F5' }]}>
                 <Ionicons name="options-outline" size={20} color="#0A2540" />
               </View>
               <Text style={styles.actionMenuText}>Modifier mon compte</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+            <Ionicons name="chevron-forward" size={18} color="#777779" />
           </Pressable>
 
-           <Pressable style={styles.menuItem} onPress={() => router.push('/(seller)/orders')}>
+          {/* Bouton Espace Vendeur / Commandes */}
+          <Pressable style={styles.menuItem} onPress={() => router.push('/(seller)/orders')}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, { backgroundColor: '#f0dd0e2a' }]}>
+              <View style={[styles.menuIconContainer, { backgroundColor: '#F4F4F5' }]}>
                 <Ionicons name="bag-outline" size={20} color="#D4AF37" />
               </View>
               <Text style={styles.actionMenuText2}>Voir les commandes clients</Text>
@@ -209,12 +210,12 @@ export default function ProfileScreen() {
           {/* Bouton Se Déconnecter */}
           <Pressable style={[styles.menuItem, styles.noBorder]} onPress={onSignoutPress}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+              <View style={[styles.menuIconContainer, { backgroundColor: '#F4F4F5' }]}>
+                <Ionicons name="log-out-outline" size={20} color="#AF1D1D" />
               </View>
-              <Text style={[styles.actionMenuText, { color: '#EF4444' }]}>Se déconnecter</Text>
+              <Text style={[styles.actionMenuText, { color: '#AF1D1D' }]}>Se déconnecter</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#FCA5A5" />
+            <Ionicons name="chevron-forward" size={18} color="#AF1D1D" />
           </Pressable>
         </View>
       </ScrollView>
@@ -238,7 +239,7 @@ export default function ProfileScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Modifier mes données</Text>
               <Pressable style={styles.closeModalButton} onPress={() => setIsModalOpen(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={20} color="#777779" />
               </Pressable>
             </View>
 
@@ -247,13 +248,13 @@ export default function ProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Nom complet</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <Ionicons name="person-outline" size={18} color="#777779" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={editFullName}
                     onChangeText={setEditFullName}
                     placeholder="Entrez votre nom"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor="#777779"
                   />
                 </View>
               </View>
@@ -262,13 +263,13 @@ export default function ProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Ville</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="location-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <Ionicons name="location-outline" size={18} color="#777779" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={editCity}
                     onChangeText={setEditCity}
                     placeholder="Ex: Abidjan, Kinshasa..."
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor="#777779"
                   />
                 </View>
               </View>
@@ -277,14 +278,14 @@ export default function ProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Numéro WhatsApp (avec code pays)</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="call-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <Ionicons name="call-outline" size={18} color="#777779" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={editPhone}
                     onChangeText={setEditPhone}
                     placeholder="Ex: 2250707070707"
                     keyboardType="phone-pad"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor="#777779"
                   />
                 </View>
               </View>
@@ -317,13 +318,13 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA', // Fond blanc cassé ultra propre
+    backgroundColor: '#F4F4F5', // Fond clair du design system
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F4F4F5',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -336,18 +337,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#0A2540',
+    color: '#0A2540', // Primary Text
     letterSpacing: -0.5,
     textAlign: 'center'
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#777779', // Neutral text
     marginTop: 2,
     fontWeight: '500',
     textAlign: 'center'
   },
-  /* Section Identité Nouvelle Génération */
   identityContainer: {
     alignItems: 'center',
     marginBottom: 32,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 55,
     borderWidth: 1,
-    borderColor: '#E2E8F0', // Cercle extérieur esthétique
+    borderColor: '#E4E4E7',
   },
   avatar: {
     width: 90,
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#0A2540', // Primary background for avatar
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#0A2540', // Primary color badge
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -400,19 +400,18 @@ const styles = StyleSheet.create({
   },
   profileEmail: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#777779',
     marginTop: 3,
     fontWeight: '500',
   },
-  /* Structure Menu List */
   menuGroup: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 5,
     paddingHorizontal: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0A2540',
+    borderColor: '#E4E4E7',
+    shadowColor: '#0a25402f',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
     shadowRadius: 8,
@@ -421,7 +420,7 @@ const styles = StyleSheet.create({
   menuGroupTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#777779',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 18,
@@ -434,7 +433,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#F4F4F5',
   },
   noBorder: {
     borderBottomWidth: 0,
@@ -448,14 +447,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F4F4F5', // Card item bg format
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   menuItemLabel: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#777779',
     fontWeight: '700',
     textTransform: 'uppercase',
   },
@@ -473,15 +472,14 @@ const styles = StyleSheet.create({
   actionMenuText2: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#D4AF37',
+    color: '#D4AF37', // Secondary action color text
   },
   btnIcon: {
     marginRight: 8,
   },
-  /* Modal Styles */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 37, 64, 0.3)',
+    backgroundColor: 'rgba(10, 37, 64, 0.4)', // Overlay matching core theme tone
     justifyContent: 'flex-end',
   },
   modalDismissArea: {
@@ -497,7 +495,7 @@ const styles = StyleSheet.create({
   modalDragIndicator: {
     width: 40,
     height: 4,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#E4E4E7',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -517,8 +515,8 @@ const styles = StyleSheet.create({
   closeModalButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    backgroundColor: '#F4F4F5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -531,16 +529,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#475569',
+    color: '#0A2540',
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F4F4F5',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
+    borderColor: '#E4E4E7',
+    borderRadius: 10,
     paddingHorizontal: 14,
     height: 50,
   },
@@ -554,16 +552,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#0A2540',
+    backgroundColor: '#0A2540', // Primary button design
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     height: 52,
-    borderRadius: 12,
+    borderRadius: 10,
     marginTop: 12,
   },
   saveButtonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: '#777779',
   },
   saveButtonText: {
     color: '#FFFFFF',

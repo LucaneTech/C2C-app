@@ -21,7 +21,7 @@ const { width } = Dimensions.get('window');
 type Order = {
   id: string;
   quantity: number;
-  status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled';
   created_at: string;
   listing_id: number;
   listings: {
@@ -155,8 +155,7 @@ export default function OrdersScreen() {
   const getStatusDetails = (status: Order['status']) => {
     switch (status) {
       case 'pending': return { label: 'EN ATTENTE', color: '#71717A', allowCancel: true };
-      case 'confirmed': return { label: 'CONFIRMÉE', color: '#09090B', allowCancel: false };
-      case 'delivered': return { label: 'LIVRÉE', color: '#16A34A', allowCancel: false };
+      case 'completed': return { label: 'CONFIRMÉE', color: '#16A34A', allowCancel: false };
       case 'cancelled': return { label: 'ANNULÉE', color: '#DC2626', allowCancel: false };
       default: return { label: 'STATUT INCONNU', color: '#71717A', allowCancel: false };
     }
@@ -165,7 +164,7 @@ export default function OrdersScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="small" color="#09090B" />
+        <ActivityIndicator size="large" color="#D4AF37" />
       </View>
     );
   }
