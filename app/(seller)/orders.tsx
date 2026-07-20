@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Alert,
-  Image
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type OrderStatus = 'pending' | 'completed' | 'cancelled';
 
@@ -57,7 +57,7 @@ export default function SellerOrdersScreen() {
           vendor_id,
           quantity,
           listing_id,
-          listings:listing_id (
+          listings(
             title,
             price,
             image

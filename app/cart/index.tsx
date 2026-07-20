@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  FlatList,
-  Image,
-  Pressable,
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
+  Image,
+  Pressable,
   RefreshControl,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import Ionicons from '@expo/vector-icons/Ionicons';
 
 const { width } = Dimensions.get('window');
 
@@ -240,7 +240,7 @@ export default function CartScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="small" color="#09090B" />
+        <ActivityIndicator size="large" color="#0A2540" />
       </View>
     );
   }
@@ -343,7 +343,6 @@ export default function CartScreen() {
               </View>
               <FlatList
                 data={recommendations}
-                
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(item) => item.id.toString()}
@@ -400,11 +399,11 @@ export default function CartScreen() {
               onPress={handleConfirmCheckout}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#09090B" />
+                <ActivityIndicator size="large" color="#0A2540" />
               ) : (
                 <>
                   <Text style={styles.checkoutText}>CONFIRMER LA SÉLECTION</Text>
-                  <Ionicons name="arrow-forward" size={14} color="#09090B" style={styles.checkoutIcon} />
+                
                 </>
               )}
             </Pressable>
@@ -659,7 +658,7 @@ const styles = StyleSheet.create({
     zIndex: 99,
   },
   footerBar: {
-    backgroundColor: '#09090B',
+    backgroundColor: '#0A2540',
     borderRadius: 2,
     padding: 16,
     borderWidth: 1,

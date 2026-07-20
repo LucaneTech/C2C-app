@@ -59,8 +59,6 @@ export default function OrdersScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Note : Si l'erreur PGRST200 persiste, remplace 'profiles(full_name, city)' 
-      // par 'profiles:nom_de_ta_colonne_cle_etrangere(full_name, city)' (ex: profiles:user_id(...))
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -121,7 +119,7 @@ export default function OrdersScreen() {
   const cancelOrder = async (orderId: string) => {
     Alert.alert(
       "Annuler la commande",
-      "Êtes-vous sûr de vouloir annuler cette demande ? Cette action est irréversible.",
+      "Êtes-vous sûr de vouloir annuler cette demande ?",
       [
         { text: "Retour", style: "cancel" },
         {
@@ -152,12 +150,46 @@ export default function OrdersScreen() {
     );
   };
 
+  // Nouvelle fonctionnalité de réactivation de commande
+  const reactivateOrder = async (orderId: string) => {
+    Alert.alert(
+      "Réactiver la commande",
+      "Souhaitez-vous repasser cette commande en attente de validation ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Réactiver",
+          onPress: async () => {
+            const previousOrders = [...orders];
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'pending' } : o));
+
+            try {
+              const targetId = isNaN(Number(orderId)) ? orderId : Number(orderId);
+              
+              const { error } = await supabase
+                .from('orders')
+                .update({ status: 'pending' })
+                .eq('id', targetId);
+
+              if (error) throw error;
+              Alert.alert("Réactivée", "Votre commande est de nouveau en attente.");
+            } catch (error: any) {
+              console.error("Erreur réactivation:", error);
+              Alert.alert("Erreur", "Impossible de réactiver la commande.");
+              setOrders(previousOrders);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const getStatusDetails = (status: Order['status']) => {
     switch (status) {
-      case 'pending': return { label: 'EN ATTENTE', color: '#71717A', allowCancel: true };
-      case 'completed': return { label: 'CONFIRMÉE', color: '#16A34A', allowCancel: false };
-      case 'cancelled': return { label: 'ANNULÉE', color: '#DC2626', allowCancel: false };
-      default: return { label: 'STATUT INCONNU', color: '#71717A', allowCancel: false };
+      case 'pending': return { label: 'EN ATTENTE', color: '#381D00', allowCancel: true, allowReactivate: false };
+      case 'completed': return { label: 'CONFIRMÉE', color: '#16A34A', allowCancel: false, allowReactivate: false };
+      case 'cancelled': return { label: 'ANNULÉE', color: '#DC2626', allowCancel: false, allowReactivate: true };
+      default: return { label: 'STATUT INCONNU', color: '#71717A', allowCancel: false, allowReactivate: false };
     }
   };
 
@@ -235,6 +267,16 @@ export default function OrdersScreen() {
                     onPress={() => cancelOrder(item.id)}
                   >
                     <Text style={styles.cancelButtonText}>ANNULER LA DEMANDE</Text>
+                  </Pressable>
+                )}
+
+                {/* Bouton de réactivation conditionnel */}
+                {statusConfig.allowReactivate && (
+                  <Pressable 
+                    style={styles.reactivateButton} 
+                    onPress={() => reactivateOrder(item.id)}
+                  >
+                    <Text style={styles.reactivateButtonText}>RÉACTIVER LA DEMANDE</Text>
                   </Pressable>
                 )}
               </View>
@@ -389,7 +431,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     borderWidth: 1,
-    borderColor: '#09090B',
+    borderColor: '#0A2540',
     borderRadius: 2,
     height: 40,
     justifyContent: 'center',
@@ -399,7 +441,21 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#09090B',
+    color: '#0A2540',
+    letterSpacing: 0.5,
+  },
+  reactivateButton: {
+    backgroundColor: '#D4AF37',
+    borderRadius: 2,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  reactivateButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   emptyContainer: {

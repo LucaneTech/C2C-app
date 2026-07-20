@@ -204,7 +204,7 @@ export default function ProfileScreen() {
               </View>
               <Text style={styles.actionMenuText2}>Voir les commandes clients</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
+            <Ionicons name="chevron-forward" size={18} color="#777779" />
           </Pressable>
 
           {/* Bouton Se Déconnecter */}
@@ -472,14 +472,14 @@ const styles = StyleSheet.create({
   actionMenuText2: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#D4AF37', // Secondary action color text
+    color: '#0A2540', // Secondary action color text
   },
   btnIcon: {
     marginRight: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 37, 64, 0.4)', // Overlay matching core theme tone
+    backgroundColor: 'rgba(10, 37, 64, 0.37)', // Overlay matching core theme tone
     justifyContent: 'flex-end',
   },
   modalDismissArea: {
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   modalDragIndicator: {
     width: 40,
     height: 4,
-    backgroundColor: '#E4E4E7',
+    backgroundColor: '#d4af377a',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -515,8 +515,8 @@ const styles = StyleSheet.create({
   closeModalButton: {
     width: 32,
     height: 32,
-    borderRadius: 10,
-    backgroundColor: '#F4F4F5',
+    borderRadius: 50,
+    backgroundColor: '#0a25402d',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F5',
     borderWidth: 1,
     borderColor: '#E4E4E7',
-    borderRadius: 10,
+    borderRadius: 5,
     paddingHorizontal: 14,
     height: 50,
   },
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#0A2540', // Primary button design
+    backgroundColor: '#D4AF37', // Primary button design
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

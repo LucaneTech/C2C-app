@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import {
   ActivityIndicator,
+  Button,
   FlatList,
   Image,
   Pressable,
@@ -215,6 +216,8 @@ export default function App() {
 
                 <Text style={styles.itemPrice}>{item.price} Dhs</Text>
               </View>
+
+            <Text style ={styles.buyBtn}>Achéter</Text>
             </Pressable>
           );
         }}
@@ -250,7 +253,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#F8F9FA',
-    borderRadius: 12,
+    borderRadius: 5,
     marginBottom: 16,
     flex: 0.485,
     overflow: 'hidden',
@@ -319,9 +322,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   itemPrice: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0a2540',
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#D4AF37',
     marginTop: 2,
   },
   emptyContainer: {
@@ -333,4 +336,13 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 14,
   },
+
+  buyBtn:{
+    backgroundColor: '#0A2540',
+    padding: 6,
+    width: '100%',
+    textAlign: 'center',
+    color: '#ffff',
+    fontSize: 15,
+  }
 });
