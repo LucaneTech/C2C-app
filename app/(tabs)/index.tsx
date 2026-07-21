@@ -3,6 +3,8 @@ import HeaderUserBadge from '@/components/HeaderUserBadge';
 import SearchFilterBanner from '@/components/SearchFilterBanner';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from "@expo/vector-icons/MaterialIcons"
+import Entypo  from "@expo/vector-icons/Entypo"
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -14,6 +16,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -32,6 +35,7 @@ interface Listing {
   image: string | null;
   status: 'active' | 'hidden' | 'sold' | 'archived';
   category: Category | null;
+  city: string;
 }
 
 export default function App() {
@@ -50,6 +54,9 @@ export default function App() {
         .select(`
           id, 
           vendor_id,
+          profiles:vendor_id(
+           city
+        ),
           title, 
           description, 
           price,
@@ -58,11 +65,11 @@ export default function App() {
           status,
           category:category_id(id, name)
         `)
-        .eq('status', 'active') 
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       if (data) {
         const formattedData: Listing[] = data.map((item: any) => ({
           id: item.id,
@@ -73,6 +80,7 @@ export default function App() {
           quantity: item.quantity,
           image: item.image,
           status: item.status,
+          city: item.profiles.city,
           category: item.category ? { id: item.category.id, name: item.category.name } : null,
         }));
         setListings(formattedData);
@@ -142,12 +150,12 @@ export default function App() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        
+
         // Ajout du Pull-to-Refresh globalisé
         refreshControl={
           <AppRefreshControl onRefresh={getListings} />
         }
-        
+
         ListHeaderComponent={
           <SearchFilterBanner
             searchQuery={searchQuery}
@@ -157,7 +165,7 @@ export default function App() {
             onCategorySelect={setSelectedCategory}
           />
         }
-        
+
         renderItem={({ item }) => {
           const isOutOfStock = item.quantity <= 0;
 
@@ -173,40 +181,45 @@ export default function App() {
               }
               accessibilityRole="button"
             >
-              {item.image ? (
-                <View>
+              {/* Section Image */}
+              <View style={styles.imageContainer}>
+                {item.image ? (
                   <Image
                     source={{ uri: item.image }}
                     style={styles.cardImage}
                     resizeMode="cover"
                   />
-                  {isOutOfStock && (
-                    <View style={styles.soldOverlay}>
-                      <Text style={styles.soldOverlayText}>ÉPUISÉ</Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <View style={styles.placeholderImage}>
-                  <Ionicons name="image" size={28} color="#94A3B8" />
-                </View>
-              )}
+                ) : (
+                  <View style={styles.placeholderImage}>
+                    <Ionicons name="image-outline" size={32} color="#94A3B8" />
+                  </View>
+                )}
 
+                {/* Overlay Épuisé */}
+                {isOutOfStock && (
+                  <View style={styles.soldOverlay}>
+                    <Text style={styles.soldOverlayText}>ÉPUISÉ</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Section Contenu & Métadonnées */}
               <View style={styles.cardContent}>
                 <View style={styles.metaRow}>
-                  {item.category?.name && (
+                  {item.category?.name ? (
                     <View style={styles.badge}>
+                      <Entypo name = "location" size ={10} color = "#008080"/>
                       <Text style={styles.badgeText} numberOfLines={1}>
-                        {item.category.name}
+
+                        {item.city}
                       </Text>
                     </View>
+                  ) : (
+                    <View />
                   )}
-                  
-                  {/* Indication visuelle de la quantité disponible */}
+
                   {!isOutOfStock && (
-                    <Text style={styles.stockText}>
-                      Stock: {item.quantity}
-                    </Text>
+                    <Text style={styles.stockText}>Stock: {item.quantity}</Text>
                   )}
                 </View>
 
@@ -214,10 +227,22 @@ export default function App() {
                   {item.title}
                 </Text>
 
-                <Text style={styles.itemPrice}>{item.price} Dhs</Text>
-              </View>
+                {/* Ligne Prix + Bouton d'action rapide */}
+                <View style={styles.actionRow}>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.itemPrice}>{item.price}</Text>
+                    <Text style={styles.currencyText}>Dhs</Text>
+                  </View>
 
-            <Text style ={styles.buyBtn}>Achéter</Text>
+                  <TouchableOpacity
+                    style={[styles.cartButton, isOutOfStock && styles.cartButtonDisabled]}
+                    disabled={isOutOfStock}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="add-shopping-cart" size={18} color="#D4AF37" />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </Pressable>
           );
         }}
@@ -252,42 +277,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   card: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5, // Contrainte : max 5px
     marginBottom: 16,
     flex: 0.485,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+    // Ombres fines pour relief subtil
+    shadowColor: '#0A2540',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   disabledCard: {
     opacity: 0.6,
   },
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 1, // Ratio carré 1:1 moderne
+    position: 'relative',
+    backgroundColor: '#F8FAFC',
+  },
   cardImage: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    height: '100%',
   },
   placeholderImage: {
     width: '100%',
-    aspectRatio: 4 / 3,
-    backgroundColor: '#E2E8F0',
+    height: '100%',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   soldOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(10, 37, 64, 0.89)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   soldOverlayText: {
     color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 14,
+    fontWeight: '800',
+    fontSize: 11,
     letterSpacing: 1,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3, // Max 5px
   },
   cardContent: {
-    padding: 12,
+    padding: 10,
+    justifyContent: 'space-between',
   },
   metaRow: {
     flexDirection: 'row',
@@ -296,15 +338,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   badge: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    maxWidth: '70%',
+    flex:1,
+    flexDirection:"row",
+    gap:2,
+    maxWidth: '65%',
   },
   badgeText: {
-    color: '#0A2540',
+    color: '#64748B',
     fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -312,20 +352,49 @@ const styles = StyleSheet.create({
   },
   stockText: {
     fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600',
+    color: '#10B981',
+    fontWeight: '700',
   },
   itemName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
   },
   itemPrice: {
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '800',
     color: '#D4AF37',
-    marginTop: 2,
+  },
+  currencyText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  cartButton: {
+    backgroundColor: '#0A2540', // Bleu marine profond
+    width: 34,
+    height: 34,
+    borderRadius: 50, // Max 5px
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)', // Liseré Or subtil
+  },
+  cartButtonDisabled: {
+    backgroundColor: '#CBD5E1',
+    borderColor: 'transparent',
   },
   emptyContainer: {
     padding: 40,
@@ -337,12 +406,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  buyBtn:{
-    backgroundColor: '#0A2540',
-    padding: 6,
-    width: '100%',
-    textAlign: 'center',
-    color: '#ffff',
-    fontSize: 15,
-  }
+ 
 });

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,7 +26,7 @@ interface Order {
   listings: {
     title: string;
     price: number;
-    image?: string; // Ajout de l'image de l'article
+    image?: string;
   } | null;
   profiles: {
     full_name?: string;
@@ -35,6 +36,7 @@ interface Order {
 }
 
 export default function SellerOrdersScreen() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -46,7 +48,6 @@ export default function SellerOrdersScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Récupération des détails de l'annonce et du profil de l'acheteur (via la FK buyer_id vers profiles)
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -251,6 +252,15 @@ export default function SellerOrdersScreen() {
           }
         />
       )}
+
+      {/* Bouton Flottant (FAB) d'Accueil */}
+      <TouchableOpacity
+        style={styles.fabHome}
+        activeOpacity={0.85}
+        onPress={() => router.replace('/')}
+      >
+        <Ionicons name="home" size={22} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -308,7 +318,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 88, // Espace sous la liste pour éviter le chevauchement avec le FAB
   },
   orderCard: {
     backgroundColor: '#FFFFFF',
@@ -476,5 +486,22 @@ const styles = StyleSheet.create({
     color: '#71717A',
     fontSize: 14,
     fontWeight: '600',
+  },
+  fabHome: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#D4AF37',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+   
   },
 });

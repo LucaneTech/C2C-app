@@ -32,7 +32,31 @@ export default function SellerLayout() {
           headerShown: false 
         }} 
       />
+       <Stack.Screen 
+        name="manage-listings" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+
+      <Stack.Screen 
+        name="manage-listings/createListingScreen" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+
+       <Stack.Screen 
+        name="manage-listings/editListingScreen" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
     </Stack>
+
+    
+     
+   
   );
 }
 

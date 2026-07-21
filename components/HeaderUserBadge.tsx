@@ -2,7 +2,7 @@ import { useUserProfil } from '@/hook/useUserProfil';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,60 +12,80 @@ export default function HeaderUserBadge() {
   const [cartCount, setCartCount] = useState<number>(0);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
+  // Animation fluide lors du changement de panier
+  const triggerBadgeAnimation = useCallback(() => {
+    scaleAnim.setValue(1);
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 1.25, duration: 120, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  }, [scaleAnim]);
+
+  // Fonction pour récupérer le total précis
+  const fetchCartCount = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('cart')
+        .select('quantity')
+        .eq('user_id', userId);
+
+      if (!error && data) {
+        const total = data.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+        setCartCount((prev) => {
+          if (prev !== total) triggerBadgeAnimation();
+          return total;
+        });
+      }
+    } catch (err) {
+      console.error('Erreur chargement panier:', err);
+    }
+  }, [triggerBadgeAnimation]);
+
   useEffect(() => {
-    let channel: any;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const initCartSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const setupSubscription = async () => {
+      // 1. Récupération de la session utilisateur
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = profile?.id || session?.user?.id;
 
-      const fetchCount = async () => {
-        const { data, error } = await supabase
-          .from('cart')
-          .select('quantity')
-          .eq('user_id', user.id);
+      if (!currentUserId) return;
 
-        if (!error && data) {
-          const totalQuantity = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
-          setCartCount(totalQuantity);
-          
-          Animated.sequence([
-            Animated.timing(scaleAnim, { toValue: 1.2, duration: 150, useNativeDriver: true }),
-            Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-          ]).start();
-        }
-      };
+      // Charge la valeur initiale
+      await fetchCartCount(currentUserId);
 
-      // 1. Initialisation des données
-      await fetchCount();
-
-      // 2. Création et configuration du canal (sans subscribe instantané)
-      const newChannel = supabase
-        .channel(`public:cart:user_id=${user.id}`)
+      // 2. Création du canal Realtime
+      channel = supabase
+        .channel(`cart_badge_${currentUserId}`)
         .on(
           'postgres_changes',
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: 'cart', 
-            filter: `user_id=eq.${user.id}` 
+          {
+            event: '*', // INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'cart',
+            filter: `user_id=eq.${currentUserId}`,
           },
           () => {
-            fetchCount();
+            // À chaque modification détectée, on re-synchronise avec le backend
+            fetchCartCount(currentUserId);
           }
-        );
-
-      // 3. Activation de l'abonnement
-      newChannel.subscribe();
-      channel = newChannel;
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            // Re-fetch de sécurité au moment de la connexion réussie au canal
+            fetchCartCount(currentUserId);
+          }
+        });
     };
 
-    initCartSubscription();
+    setupSubscription();
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, []);
+  }, [profile?.id, fetchCartCount]);
 
   if (loading) {
     return (
@@ -85,8 +105,7 @@ export default function HeaderUserBadge() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.headerContainer}>
-        
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.profileClickable}
           activeOpacity={0.7}
           onPress={() => router.push('/profile')}
@@ -95,7 +114,7 @@ export default function HeaderUserBadge() {
             <Text style={styles.avatarText}>{userInitials}</Text>
             <View style={styles.onlineIndicator} />
           </View>
-          
+
           <View style={styles.textContainer}>
             <Text style={styles.greetingText}>Bienvenue</Text>
             <Text style={styles.userName} numberOfLines={1}>
@@ -111,9 +130,14 @@ export default function HeaderUserBadge() {
             style={styles.iconButton}
           >
             <Ionicons name="bag-handle-outline" size={20} color="#09090B" />
-            
+
             {cartCount > 0 && (
-              <Animated.View style={[styles.badgeContainer, { transform: [{ scale: scaleAnim }] }]}>
+              <Animated.View
+                style={[
+                  styles.badgeContainer,
+                  { transform: [{ scale: scaleAnim }] },
+                ]}
+              >
                 <Text style={styles.badgeText}>
                   {cartCount > 99 ? '99+' : cartCount}
                 </Text>
@@ -121,7 +145,6 @@ export default function HeaderUserBadge() {
             )}
           </TouchableOpacity>
         </View>
-
       </View>
     </SafeAreaView>
   );
@@ -135,8 +158,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F4F4F5',
@@ -147,9 +170,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatarWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 50,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#09090B',
     justifyContent: 'center',
     alignItems: 'center',
@@ -157,29 +180,29 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   onlineIndicator: {
     position: 'absolute',
-    bottom: -4,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 50,
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#16A34A',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
   textContainer: {
-    marginLeft: 14,
+    marginLeft: 12,
     justifyContent: 'center',
   },
   greetingText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#71717A',
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
@@ -187,7 +210,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#09090B',
-    marginTop: 2,
+    marginTop: 1,
     letterSpacing: -0.2,
   },
   actionContainer: {
@@ -195,9 +218,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 50,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -207,10 +230,10 @@ const styles = StyleSheet.create({
   },
   badgeContainer: {
     position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#f51000',
-    borderRadius: 50,
+    top: -4,
+    right: -4,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
@@ -229,12 +252,12 @@ const styles = StyleSheet.create({
     width: 110,
     height: 18,
     backgroundColor: '#F4F4F5',
-    borderRadius: 2,
+    borderRadius: 4,
   },
   skeletonAvatar: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     backgroundColor: '#F4F4F5',
-    borderRadius: 2,
+    borderRadius: 19,
   },
 });

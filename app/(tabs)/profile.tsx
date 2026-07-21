@@ -7,29 +7,30 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
+
   // Hooks globaux
   const { profile, loading, refreshProfile } = useUserProfil();
   const { handleSignOut } = useAuth();
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // États locaux pour l'édition
@@ -63,16 +64,16 @@ export default function ProfileScreen() {
         .eq('id', profile.id);
 
       if (error) throw error;
-      
+
       if (typeof refreshProfile === 'function') {
         await refreshProfile();
       }
 
       setIsModalOpen(false);
-      Alert.alert("Succès", "Vos informations ont été mises à jour.");
+      Alert.alert('Succès', 'Vos informations ont été mises à jour.');
     } catch (error) {
-      console.error("Erreur mise à jour profil :", error);
-      Alert.alert("Erreur", "Une erreur est survenue lors de l'enregistrement.");
+      console.error('Erreur mise à jour profil :', error);
+      Alert.alert('Erreur', "Une erreur est survenue lors de l'enregistrement.");
     } finally {
       setSaving(false);
     }
@@ -81,21 +82,21 @@ export default function ProfileScreen() {
   // Confirmation avant déconnexion
   const onSignoutPress = () => {
     Alert.alert(
-      "Déconnexion",
-      "Êtes-vous sûr de vouloir vous déconnecter de votre compte ?",
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter de votre compte ?',
       [
-        { text: "Annuler", style: "cancel" },
-        { 
-          text: "Se déconnecter", 
-          style: "destructive", 
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Se déconnecter',
+          style: 'destructive',
           onPress: async () => {
             try {
               await handleSignOut();
             } catch (error) {
-              Alert.alert("Erreur", "Impossible de vous déconnecter pour le moment.");
+              Alert.alert('Erreur', 'Impossible de vous déconnecter pour le moment.');
             }
-          } 
-        }
+          },
+        },
       ]
     );
   };
@@ -109,26 +110,32 @@ export default function ProfileScreen() {
   if (loading && !profile) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#0A2540" />
+        <ActivityIndicator size="small" color="#0A2540" />
       </View>
     );
   }
+
+  // Calcul du dégagement bas pour le Tab Bar flottant
+  const bottomPaddingForTabBar = insets.bottom + 100;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: bottomPaddingForTabBar } // Espace de sécurité sous le dernier élément
+        ]}
         refreshControl={<AppRefreshControl onRefresh={handleRefresh} />}
       >
-        {/* En-tête de la page */}
-        <View style={styles.header}>
+        {/* En-tête principal */}
+        {/* <View style={styles.header}>
           <Text style={styles.headerTitle}>Mon Profil</Text>
-          <Text style={styles.headerSubtitle}>Configurez votre profil et vos préférences</Text>
-        </View>
+          <Text style={styles.headerSubtitle}>Gérez vos préférences et vos activités</Text>
+        </View> */}
 
-        {/* Section Identité */}
-        <View style={styles.identityContainer}>
+        {/* Carte d'identité du profil */}
+        <View style={styles.identityCard}>
           <View style={styles.avatarWrapper}>
             {profile?.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
@@ -139,26 +146,31 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
-            <Pressable style={styles.avatarEditBadge} onPress={() => setIsModalOpen(true)}>
-              <Ionicons name="pencil" size={12} color="#FFFFFF" />
-            </Pressable>
+            <TouchableOpacity
+              style={styles.avatarEditBadge}
+              onPress={() => setIsModalOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="pencil-sharp" size={12} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.profileName}>
-            {profile?.full_name || 'Utilisateur'}
-          </Text>
-          <Text style={styles.profileEmail}>{profile?.email || 'Aucune adresse e-mail'}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.profileName}>{profile?.full_name || 'Utilisateur'}</Text>
+            <Ionicons name="checkmark-circle" size={18} color="#05a026" style={styles.verifiedBadge} />
+          </View>
+
+          <Text style={styles.profileEmail}>{profile?.email || 'Adresse e-mail non renseignée'}</Text>
         </View>
 
-        {/* Groupe 1 : Détails Personnels */}
+        {/* Section 1 : Informations Personnelles */}
         <View style={styles.menuGroup}>
-          <Text style={styles.menuGroupTitle}>Vos informations</Text>
-          
-          {/* Ligne : Ville */}
+          <Text style={styles.menuGroupTitle}>Informations Personnelles</Text>
+
           <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconContainer}>
-                <Ionicons name="location-outline" size={20} color="#0A2540" />
+                <Ionicons name="location-outline" size={18} color="#0A2540" />
               </View>
               <View>
                 <Text style={styles.menuItemLabel}>Ville de résidence</Text>
@@ -167,60 +179,93 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Ligne : WhatsApp */}
           <View style={[styles.menuItem, styles.noBorder]}>
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconContainer}>
-                <Ionicons name="logo-whatsapp" size={20} color="#777779" />
+                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
               </View>
               <View>
-                <Text style={styles.menuItemLabel}>Numéro WhatsApp</Text>
+                <Text style={styles.menuItemLabel}>WhatsApp</Text>
                 <Text style={styles.menuItemValue}>{profile?.phone || 'Non renseigné'}</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Groupe 2 : Actions Compte */}
+        {/* Section 2 : Espace Vendeur Premium */}
+        <View style={styles.menuGroup}>
+          <Text style={styles.menuGroupTitle}>Espace Vendeur</Text>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/(seller)/manage-listings')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIconContainer, styles.goldIconBg]}>
+                <Ionicons name="grid-outline" size={18} color="#0A2540" />
+              </View>
+              <View>
+                <Text style={styles.actionMenuText}>Mes annonces</Text>
+                <Text style={styles.actionMenuSubtext}>Gérer le stock et les prix</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, styles.noBorder]}
+            onPress={() => router.push('/(seller)/orders')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIconContainer, styles.goldIconBg]}>
+                <Ionicons name="receipt-outline" size={18} color="#D4AF37" />
+              </View>
+              <View>
+                <Text style={styles.actionMenuText}>Commandes clients</Text>
+                <Text style={styles.actionMenuSubtext}>Suivre et valider vos ventes</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Section 3 : Paramètres de Compte */}
         <View style={styles.menuGroup}>
           <Text style={styles.menuGroupTitle}>Paramètres</Text>
 
-          {/* Bouton de modification */}
-          <Pressable style={styles.menuItem} onPress={() => setIsModalOpen(true)}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => setIsModalOpen(true)}
+            activeOpacity={0.7}
+          >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, { backgroundColor: '#F4F4F5' }]}>
-                <Ionicons name="options-outline" size={20} color="#0A2540" />
+              <View style={styles.menuIconContainer}>
+                <Ionicons name="create-outline" size={18} color="#0A2540" />
               </View>
-              <Text style={styles.actionMenuText}>Modifier mon compte</Text>
+              <Text style={styles.actionMenuText}>Modifier mon profil</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#777779" />
-          </Pressable>
+            <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+          </TouchableOpacity>
 
-          {/* Bouton Espace Vendeur / Commandes */}
-          <Pressable style={styles.menuItem} onPress={() => router.push('/(seller)/orders')}>
+          <TouchableOpacity
+            style={[styles.menuItem, styles.noBorder]}
+            onPress={onSignoutPress}
+            activeOpacity={0.7}
+          >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, { backgroundColor: '#F4F4F5' }]}>
-                <Ionicons name="bag-outline" size={20} color="#D4AF37" />
+              <View style={[styles.menuIconContainer, styles.dangerIconBg]}>
+                <Ionicons name="log-out-outline" size={18} color="#DC2626" />
               </View>
-              <Text style={styles.actionMenuText2}>Voir les commandes clients</Text>
+              <Text style={[styles.actionMenuText, { color: '#DC2626' }]}>Se déconnecter</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#777779" />
-          </Pressable>
-
-          {/* Bouton Se Déconnecter */}
-          <Pressable style={[styles.menuItem, styles.noBorder]} onPress={onSignoutPress}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, { backgroundColor: '#F4F4F5' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#AF1D1D" />
-              </View>
-              <Text style={[styles.actionMenuText, { color: '#AF1D1D' }]}>Se déconnecter</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#AF1D1D" />
-          </Pressable>
+            <Ionicons name="chevron-forward" size={18} color="#DC2626" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Interface Slider Bas-Haut (Modal) */}
+      {/* Modal d'édition moderne */}
       <Modal
         visible={isModalOpen}
         animationType="slide"
@@ -237,10 +282,13 @@ export default function ProfileScreen() {
             <View style={styles.modalDragIndicator} />
 
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Modifier mes données</Text>
-              <Pressable style={styles.closeModalButton} onPress={() => setIsModalOpen(false)}>
-                <Ionicons name="close" size={20} color="#777779" />
-              </Pressable>
+              <Text style={styles.modalTitle}>Modifier mon profil</Text>
+              <TouchableOpacity
+                style={styles.closeModalButton}
+                onPress={() => setIsModalOpen(false)}
+              >
+                <Ionicons name="close" size={18} color="#0F172A" />
+              </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={styles.modalForm}>
@@ -248,13 +296,13 @@ export default function ProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Nom complet</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={18} color="#777779" style={styles.inputIcon} />
+                  <Ionicons name="person-outline" size={18} color="#71717A" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={editFullName}
                     onChangeText={setEditFullName}
-                    placeholder="Entrez votre nom"
-                    placeholderTextColor="#777779"
+                    placeholder="Votre nom complet"
+                    placeholderTextColor="#A1A1AA"
                   />
                 </View>
               </View>
@@ -263,50 +311,48 @@ export default function ProfileScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Ville</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="location-outline" size={18} color="#777779" style={styles.inputIcon} />
+                  <Ionicons name="location-outline" size={18} color="#71717A" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={editCity}
                     onChangeText={setEditCity}
-                    placeholder="Ex: Abidjan, Kinshasa..."
-                    placeholderTextColor="#777779"
+                    placeholder="Ex: Casablanca, Rabat, Fès..."
+                    placeholderTextColor="#A1A1AA"
                   />
                 </View>
               </View>
 
-              {/* Input : Téléphone / WhatsApp */}
+              {/* Input : Numéro WhatsApp */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Numéro WhatsApp (avec code pays)</Text>
+                <Text style={styles.inputLabel}>Numéro WhatsApp</Text>
                 <View style={styles.inputContainer}>
-                  <Ionicons name="call-outline" size={18} color="#777779" style={styles.inputIcon} />
+                  <Ionicons name="call-outline" size={18} color="#71717A" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={editPhone}
                     onChangeText={setEditPhone}
-                    placeholder="Ex: 2250707070707"
+                    placeholder="Ex: +212600000000"
                     keyboardType="phone-pad"
-                    placeholderTextColor="#777779"
+                    placeholderTextColor="#A1A1AA"
                   />
                 </View>
               </View>
 
               {/* Bouton Enregistrer */}
-              <Pressable
+              <TouchableOpacity
                 style={[styles.saveButton, saving && styles.saveButtonDisabled]}
                 onPress={handleSaveChanges}
                 disabled={saving}
+                activeOpacity={0.8}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <>
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" style={styles.btnIcon} />
-                    <Text style={styles.saveButtonText}>Enregistrer les modifications</Text>
-                  </>
+                  <Text style={styles.saveButtonText}>Enregistrer les modifications</Text>
                 )}
-              </Pressable>
+              </TouchableOpacity>
 
-              <View style={{ height: insets.bottom + 40 }} />
+              <View style={{ height: insets.bottom + 28 }} />
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
@@ -318,120 +364,119 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F4F5', // Fond clair du design system
+    backgroundColor: '#FAFAFA',
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F4F4F5',
+    backgroundColor: '#FAFAFA',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingTop: 8,
   },
   header: {
-    marginTop: 20,
-    marginBottom: 24,
+    marginTop: 16,
+    marginBottom: 10,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#0A2540', // Primary Text
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0F172A',
     letterSpacing: -0.5,
-    textAlign: 'center'
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#777779', // Neutral text
-    marginTop: 2,
+    color: '#71717A',
+    marginTop: 3,
     fontWeight: '500',
-    textAlign: 'center'
   },
-  identityContainer: {
+  identityCard: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 8,
+    marginBottom: 20,
+    
   },
   avatarWrapper: {
     position: 'relative',
-    marginBottom: 16,
-    padding: 4,
-    borderRadius: 55,
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
+    marginBottom: 12,
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
   },
   avatarPlaceholder: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#0A2540', // Primary background for avatar
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#0A2540',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarLetter: {
     color: '#FFFFFF',
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
   },
   avatarEditBadge: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: '#0A2540', // Primary color badge
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#D4AF37',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   profileName: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#0A2540',
+    color: '#0F172A',
     letterSpacing: -0.3,
   },
+  verifiedBadge: {
+    marginTop: 1,
+  },
   profileEmail: {
-    fontSize: 13,
-    color: '#777779',
-    marginTop: 3,
+    fontSize: 12,
+    color: '#71717A',
+    marginTop: 2,
     fontWeight: '500',
   },
   menuGroup: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 6,
     paddingHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: '#E4E4E7',
-    shadowColor: '#0a25402f',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
   },
   menuGroupTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#777779',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#A1A1AA',
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 18,
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    letterSpacing: 0.8,
+    marginTop: 14,
+    marginBottom: 6,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F4F4F5',
   },
@@ -444,42 +489,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F4F4F5', // Card item bg format
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: '#F4F4F5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
+  },
+  goldIconBg: {
+    backgroundColor: '#FEFCE8',
+  },
+  dangerIconBg: {
+    backgroundColor: '#FEE2E2',
   },
   menuItemLabel: {
-    fontSize: 11,
-    color: '#777779',
+    fontSize: 10,
+    color: '#A1A1AA',
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   menuItemValue: {
     fontSize: 14,
-    color: '#0A2540',
+    color: '#0F172A',
     fontWeight: '700',
     marginTop: 1,
   },
   actionMenuText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#0F172A',
   },
-  actionMenuText2: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0A2540', // Secondary action color text
-  },
-  btnIcon: {
-    marginRight: 8,
+  actionMenuSubtext: {
+    fontSize: 11,
+    color: '#71717A',
+    marginTop: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 37, 64, 0.37)', // Overlay matching core theme tone
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'flex-end',
   },
   modalDismissArea: {
@@ -487,36 +536,36 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: 20,
     maxHeight: '85%',
   },
   modalDragIndicator: {
-    width: 40,
+    width: 36,
     height: 4,
-    backgroundColor: '#d4af377a',
+    backgroundColor: '#E4E4E7',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
-    marginBottom: 15,
+    marginBottom: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#0A2540',
+    color: '#0F172A',
   },
   closeModalButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 50,
-    backgroundColor: '#0a25402d',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#F4F4F5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -524,48 +573,47 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 8,
+    color: '#0F172A',
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F4F4F5',
+    backgroundColor: '#FAFAFA',
     borderWidth: 1,
     borderColor: '#E4E4E7',
     borderRadius: 5,
-    paddingHorizontal: 14,
-    height: 50,
+    paddingHorizontal: 12,
+    height: 46,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    color: '#0A2540',
-    fontSize: 15,
+    color: '#0F172A',
+    fontSize: 14,
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#D4AF37', // Primary button design
-    flexDirection: 'row',
+    backgroundColor: '#0A2540',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    borderRadius: 10,
+    height: 48,
+    borderRadius: 5,
     marginTop: 12,
   },
   saveButtonDisabled: {
-    backgroundColor: '#777779',
+    backgroundColor: '#94A3B8',
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
 });

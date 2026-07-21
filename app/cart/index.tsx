@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 2,
     paddingBottom: 16,
   },
   headerTitle: {
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   bagIconContainer: {
     width: 38,
     height: 38,
-    borderRadius: 2,
+    borderRadius: 50,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   emptyIconBox: {
     width: 60,
     height: 60,
-    borderRadius: 2,
+    borderRadius: 50,
     backgroundColor: '#F4F4F5',
     justifyContent: 'center',
     alignItems: 'center',

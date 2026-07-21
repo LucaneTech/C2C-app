@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  Image,
-  Pressable,
   ActivityIndicator,
   Alert,
   Dimensions,
-  ScrollView,
+  Image,
+  Pressable,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import Ionicons from '@expo/vector-icons/Ionicons';
 
 const { width } = Dimensions.get('window');
 
@@ -430,8 +430,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   cancelButton: {
-    borderWidth: 1,
-    borderColor: '#0A2540',
+    backgroundColor: '#e2260e',
     borderRadius: 2,
     height: 40,
     justifyContent: 'center',
@@ -441,7 +440,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#ffffff',
     letterSpacing: 0.5,
   },
   reactivateButton: {
