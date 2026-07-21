@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AntDesign from '@expo/vector-icons/AntDesign';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -73,6 +74,23 @@ export default function TabLayout() {
           ),
         }}
       /> */}
+      <Tabs.Screen
+        name="chat"
+
+        options={{
+
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconContainer, focused && styles.activeIconWrapper]}>
+              <AntDesign
+                name={focused ? "wechat" : "wechat"}
+                size={25}
+                color={focused ? "#0a2540" : "#ffffff"}
+              />
+            </View>
+          ),
+        }}
+      />
+   
 
       {/* 4. Profile Tab */}
       <Tabs.Screen

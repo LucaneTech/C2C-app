@@ -149,6 +149,17 @@ export default function RootLayout() {
           }} 
         />
 
+         <Stack.Screen 
+          name="chat/[id]" 
+          options={{ 
+            title: "",
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTintColor: '#0A2540',
+            headerTitleStyle: { fontWeight: '600' },
+            headerShown: false
+          }} 
+        />
+
         <Stack.Screen 
           name="cart" 
           options={{ 

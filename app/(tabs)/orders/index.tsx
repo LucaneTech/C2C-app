@@ -1,3 +1,4 @@
+import { useStartConversation } from '@/hook/useStartConversation';
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
@@ -30,6 +31,7 @@ type Order = {
     price: number;
     image: string | null;
     category_id: number;
+    vendor_id: string; // Utilisation de vendor_id
     profiles: {
       full_name: string | null;
       city: string | null;
@@ -46,12 +48,22 @@ type Recommendation = {
 
 export default function OrdersScreen() {
   const router = useRouter();
+  const { startConversation, loading: chatLoading } = useStartConversation();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeListingId, setActiveListingId] = useState<number | null>(null);
 
   const FLOATING_TAB_BAR_HEIGHT = 80;
+
+  // Handler d'ouverture de discussion
+  const handleContactSeller = async (listingId: number, sellerId: string) => {
+    setActiveListingId(listingId);
+    await startConversation(listingId, sellerId);
+    setActiveListingId(null);
+  };
 
   const fetchOrdersAndSuggestions = async (isRefreshing = false) => {
     try {
@@ -73,6 +85,7 @@ export default function OrdersScreen() {
             price, 
             image, 
             category_id,
+            vendor_id,
             profiles(full_name, city)
           )
         `)
@@ -150,7 +163,6 @@ export default function OrdersScreen() {
     );
   };
 
-  // Nouvelle fonctionnalité de réactivation de commande
   const reactivateOrder = async (orderId: string) => {
     Alert.alert(
       "Réactiver la commande",
@@ -225,6 +237,8 @@ export default function OrdersScreen() {
             const statusConfig = getStatusDetails(item.status);
             const sellerName = item.listings.profiles?.full_name || 'Vendeur particulier';
             const sellerCity = item.listings.profiles?.city || 'Non renseignée';
+            const sellerId = item.listings.vendor_id; // Correction: récupération de vendor_id
+            const isThisCardLoading = chatLoading && activeListingId === item.listings.id;
 
             return (
               <View key={item.id} style={styles.orderCard}>
@@ -261,6 +275,24 @@ export default function OrdersScreen() {
                   </View>
                 </Pressable>
 
+                {/* Bouton de contact vendeur */}
+                {sellerId && (
+                  <Pressable
+                    style={styles.chatSellerButton}
+                    disabled={chatLoading}
+                    onPress={() => handleContactSeller(item.listings.id, sellerId)}
+                  >
+                    {isThisCardLoading ? (
+                      <ActivityIndicator size="small" color="#09090B" />
+                    ) : (
+                      <>
+                        <Ionicons name="chatbubble-ellipses-outline" size={16} color="#09090B" />
+                        <Text style={styles.chatSellerButtonText}>DISCUTER AVEC LE VENDEUR</Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+
                 {statusConfig.allowCancel && (
                   <Pressable 
                     style={styles.cancelButton} 
@@ -270,7 +302,6 @@ export default function OrdersScreen() {
                   </Pressable>
                 )}
 
-                {/* Bouton de réactivation conditionnel */}
                 {statusConfig.allowReactivate && (
                   <Pressable 
                     style={styles.reactivateButton} 
@@ -429,13 +460,31 @@ const styles = StyleSheet.create({
     color: '#09090B',
     marginTop: 4,
   },
+  chatSellerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    borderRadius: 2,
+    height: 40,
+    marginTop: 14,
+    gap: 6,
+  },
+  chatSellerButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#09090B',
+    letterSpacing: 0.5,
+  },
   cancelButton: {
     backgroundColor: '#e2260e',
     borderRadius: 2,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 10,
   },
   cancelButtonText: {
     fontSize: 11,
@@ -449,7 +498,7 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 10,
   },
   reactivateButtonText: {
     fontSize: 11,
