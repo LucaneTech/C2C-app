@@ -43,18 +43,24 @@ export default function HeaderUserBadge() {
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isMounted = true; // Empêche les fuites de mémoire si le composant est démonté pendant les requêtes async
 
     const setupSubscription = async () => {
-      // 1. Récupération de la session utilisateur
+      // 1. Récupération de la session / ID utilisateur
       const { data: { session } } = await supabase.auth.getSession();
       const currentUserId = profile?.id || session?.user?.id;
 
-      if (!currentUserId) return;
+      if (!currentUserId || !isMounted) return;
 
       // Charge la valeur initiale
       await fetchCartCount(currentUserId);
 
-      // 2. Création du canal Realtime
+      // 2. Nettoyage d'un éventuel canal existant avant d'en ouvrir un nouveau
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+
+      // 3. Création du canal Realtime
       channel = supabase
         .channel(`cart_badge_${currentUserId}`)
         .on(
@@ -66,13 +72,11 @@ export default function HeaderUserBadge() {
             filter: `user_id=eq.${currentUserId}`,
           },
           () => {
-            // À chaque modification détectée, on re-synchronise avec le backend
-            fetchCartCount(currentUserId);
+            if (isMounted) fetchCartCount(currentUserId);
           }
         )
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            // Re-fetch de sécurité au moment de la connexion réussie au canal
+          if (status === 'SUBSCRIBED' && isMounted) {
             fetchCartCount(currentUserId);
           }
         });
@@ -81,6 +85,7 @@ export default function HeaderUserBadge() {
     setupSubscription();
 
     return () => {
+      isMounted = false;
       if (channel) {
         supabase.removeChannel(channel);
       }
