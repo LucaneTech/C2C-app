@@ -5,12 +5,33 @@ import { ActivityIndicator, View } from 'react-native';
 import { UserProvider } from '../context/UserContext';
 import * as Linking from 'expo-linking';
 import { RefreshProvider } from '@/context/RefreshContext';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [session, setSession] = useState<any>(null);
   const router = useRouter();
   const segments = useSegments();
+
+  useEffect(() => {
+    // Vérifier la session active et enregistrer le token
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        registerForPushNotificationsAsync(session.user.id);
+      }
+    });
+
+    // Écouter les changements d'état de l'authentification (ex: Login/Logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        registerForPushNotificationsAsync(session.user.id);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Parse les paramètres de l'URL (gère les '?' classiques ET les '#' de Supabase)
   const extractTokensFromUrl = (url: string) => {
