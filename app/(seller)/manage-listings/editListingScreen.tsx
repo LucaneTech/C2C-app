@@ -232,7 +232,7 @@ export default function EditListingScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <SafeAreaView style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
@@ -240,7 +240,7 @@ export default function EditListingScreen() {
           {isEditing ? 'Modifier l\'annonce' : 'Nouvelle annonce'}
         </Text>
         <View style={{ width: 40 }} /> {/* Équilibreur visuel */}
-      </View>
+      </SafeAreaView>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

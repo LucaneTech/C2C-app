@@ -13,25 +13,25 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  useEffect(() => {
-    // Vérifier la session active et enregistrer le token
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        registerForPushNotificationsAsync(session.user.id);
-      }
-    });
+  // useEffect(() => {
+  //   // Vérifier la session active et enregistrer le token
+  //   supabase.auth.getSession().then(({ data: { session } }) => {
+  //     if (session?.user) {
+  //       registerForPushNotificationsAsync(session.user.id);
+  //     }
+  //   });
 
-    // Écouter les changements d'état de l'authentification (ex: Login/Logout)
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        registerForPushNotificationsAsync(session.user.id);
-      }
-    });
+  //   // Écouter les changements d'état de l'authentification (ex: Login/Logout)
+  //   const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+  //     if (event === 'SIGNED_IN' && session?.user) {
+  //       registerForPushNotificationsAsync(session.user.id);
+  //     }
+  //   });
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+  //   return () => {
+  //     authListener.subscription.unsubscribe();
+  //   };
+  // }, []);
 
   // Parse les paramètres de l'URL (gère les '?' classiques ET les '#' de Supabase)
   const extractTokensFromUrl = (url: string) => {

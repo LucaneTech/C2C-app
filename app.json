@@ -37,12 +37,15 @@
         {
           "image": "./assets/images/yabisso.png",
           "resizeMode": "contain",
-          "backgroundColor": "#fffff"
+          "backgroundColor": "#ffffff"
         }
       ],
       "expo-sqlite",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+
+      "expo-notifications"
+
     ],
     "experiments": {
       "typedRoutes": true
