@@ -1,16 +1,25 @@
 import { supabase } from '@/lib/supabase';
 import * as Device from 'expo-device';
+
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+
 import { Platform } from 'react-native';
 
 // Configuration du comportement des notifications quand l'app est au premier plan
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
+
+function handleRegistrationError(errorMessage: string) {
+  alert(errorMessage);
+  throw new Error(errorMessage);
+}
 
 export async function registerForPushNotificationsAsync(userId: string) {
   if (!Device.isDevice) {
@@ -32,10 +41,23 @@ export async function registerForPushNotificationsAsync(userId: string) {
     return;
   }
 
+
+  // Debug id project found or not
+  const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+  if (!projectId) {
+    handleRegistrationError('ID du projet non trouvé');
+  }
+
   try {
+
     // 2. Obtention du token Expo Push
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const tokenData = (
+      await Notifications.getExpoPushTokenAsync({
+        projectId,
+      })
+    );
     const expoPushToken = tokenData.data;
+
 
     // 3. Sauvegarde / Mise à jour dans Supabase
     const { error } = await supabase

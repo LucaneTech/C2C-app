@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+/yabisso-2d5b6-firebase-adminsdk-fbsvc-5d6482620d.json
+yabisso-2d5b6-firebase-adminsdk-fbsvc-5d6482620d.json

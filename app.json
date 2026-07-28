@@ -43,9 +43,8 @@
       "expo-sqlite",
       "expo-status-bar",
       "expo-web-browser",
-
+      // Expo push notification plugin
       "expo-notifications"
-
     ],
     "experiments": {
       "typedRoutes": true

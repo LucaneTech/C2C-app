@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "960304595765",
-    "project_id": "shop-1212d",
-    "storage_bucket": "shop-1212d.firebasestorage.app"
+    "project_number": "1065755920146",
+    "project_id": "yabisso-2d5b6",
+    "storage_bucket": "yabisso-2d5b6.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:960304595765:android:85d0186f7399e2bd9d027c",
+        "mobilesdk_app_id": "1:1065755920146:android:5bfd432afc375ba40d15cb",
         "android_client_info": {
           "package_name": "com.lucanetech.shop"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD-0IAUffHjmFcAiILkWDFaiwPQ1XitsKA"
+          "current_key": "AIzaSyCDN2e11WYrcQlE3oiKf5IBIQZA1H7se5o"
         }
       ],
       "services": {
