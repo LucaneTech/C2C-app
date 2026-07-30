@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -46,6 +46,9 @@ export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
+  // Reference au TextInput pour le repositionnement & focus
+  const inputRef = useRef<TextInput>(null);
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -84,7 +87,7 @@ export default function ChatScreen() {
           .eq('id', otherId)
           .single();
 
-        // Extraire proprement l'annonce (si renvoyée sous forme de tableau par la jointure Supabase)
+        // Extraire proprement l'annonce
         const rawListing = convData.listing;
         const listingObj: ListingInfo | null = Array.isArray(rawListing)
           ? rawListing[0] || null
@@ -175,6 +178,13 @@ export default function ChatScreen() {
     setSending(false);
   };
 
+  // Re-focus / Ajustement lors de l'ouverture du clavier
+  const handleInputFocus = () => {
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
   // Rendu des bulles de messages
   const renderMessageItem = useCallback(
     ({ item }: { item: Message }) => {
@@ -231,10 +241,10 @@ export default function ChatScreen() {
         )}
       </View>
 
-      {/* ZONE DE CHAT & SAISIE */}
+      {/* ZONE DE CHAT & SAISIE AVEC GESTION DU CLAVIER */}
       <KeyboardAvoidingView
         style={styles.chatArea}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
@@ -248,11 +258,13 @@ export default function ChatScreen() {
 
         <View style={styles.inputContainer}>
           <TextInput
+            ref={inputRef}
             style={styles.textInput}
             placeholder="Écrivez un message..."
             placeholderTextColor="#A1A1AA"
             value={inputText}
             onChangeText={setInputText}
+            onFocus={handleInputFocus}
             multiline
             maxLength={1000}
           />

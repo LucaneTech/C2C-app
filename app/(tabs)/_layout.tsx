@@ -18,7 +18,7 @@ export default function TabLayout() {
       .on(
         'postgres_changes',
         {
-          event: '*', // INSERT, UPDATE, DELETE
+          event: '*', 
           schema: 'public',
           table: 'messages', // Nom de votre table de messages
         },
